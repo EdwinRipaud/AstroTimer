@@ -5,8 +5,9 @@ import numpy as np
 from PIL import Image
 
 OPERATING_SYSTEM = os.uname()
+RUN_ON_RPi = (OPERATING_SYSTEM.sysname == 'Linux') and (OPERATING_SYSTEM.machine in ['aarch64', 'armv6l'])
 
-if OPERATING_SYSTEM.sysname == 'Linux' and OPERATING_SYSTEM.machine == 'aarch64':
+if RUN_ON_RPi:
     from . import lcdconfig
 
 
@@ -25,7 +26,7 @@ class LCD_1inch47():
     
     
     def __init__(self, spi_bus=0, spi_device=0, spi_freq=40000000, rst=27, dc=25, bl=18, bl_freq=1000):
-        if OPERATING_SYSTEM.sysname == 'Linux' and OPERATING_SYSTEM.machine == 'aarch64':
+        if RUN_ON_RPi:
             self.instance = lcdconfig.RaspberryPi(spi_bus, spi_device, spi_freq, rst, dc, bl, bl_freq)
             self.Init()
         
@@ -212,7 +213,7 @@ class LCD_1inch47():
         if show:
                 image.transpose(ROTATE_90).show()
         
-        if OPERATING_SYSTEM.sysname == 'Linux' and OPERATING_SYSTEM.machine == 'aarch64':
+        if RUN_ON_RPi:
             img = np.asarray(image)
             pix = np.zeros((self.height,self.width,2), dtype = np.uint8)
             
@@ -229,7 +230,7 @@ class LCD_1inch47():
     def ClearScreen(self):
         logging.info(f"{SCRIPT_NAME}:class>>LCD_1inch47():ClearScreen(): clear display and reset self.screen_img")
         self._reset_frame()
-        if OPERATING_SYSTEM.sysname == 'Linux' and OPERATING_SYSTEM.machine == 'aarch64':
+        if RUN_ON_RPi:
             self.clear(val=0x00)
             self.module_exit()
         return None

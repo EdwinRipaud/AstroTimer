@@ -19,13 +19,15 @@ dirname = os.path.dirname(abspath)
 os.chdir(dirname)
 
 OPERATING_SYSTEM = os.uname()
+RUN_ON_RPi = (OPERATING_SYSTEM.sysname == 'Linux') and (OPERATING_SYSTEM.machine in ['aarch64', 'armv6l'])
 
-if OPERATING_SYSTEM.sysname == 'Linux' and OPERATING_SYSTEM.machine in ['aarch64', 'armv6l']:
+if RUN_ON_RPi:
     import RPi.GPIO as GPIO
-    USE_GPIO = True
+    GPIO.setmode(GPIO.BCM)
+    USE_SCREEN = False
 else:
     from pynput.keyboard import Key, Listener
-    USE_GPIO = False
+    USE_SCREEN = True
 
 class Intervalometre():
     """
@@ -96,7 +98,7 @@ class Intervalometre():
         logging.debug(f"{self.id_name}:Intervalometre(class):__init__(): initialise 5-way switch")
         	# 5-way switch PIN
         if not sw5_dict:
-            if USE_GPIO:
+            if RUN_ON_RPi:
                 self.SW5_DICT   = {6    : "Click",
                                    19   : "Right",
                                    5    : "Left",
@@ -113,7 +115,7 @@ class Intervalometre():
         else:
             self.SW5_DICT = sw5_dict
         self.SW5_PIN = None
-        if USE_GPIO:
+        if RUN_ON_RPi:
             for pin in list(self.SW5_DICT.keys()):
                 GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                 GPIO.add_event_detect(pin, GPIO.FALLING, callback=self.callback_SW5)
@@ -362,7 +364,7 @@ class Intervalometre():
             self.QUIT = 1
         
         self.LCD.screen_img = self._draw_quit()
-        self.LCD.ShowImage(show=not USE_GPIO)
+        self.LCD.ShowImage(show=USE_SCREEN)
         return None
     
     def _handler_main_menu(self):
@@ -383,7 +385,7 @@ class Intervalometre():
             self.SELECTED_MAIN_MENU  = (self.SELECTED_MAIN_MENU + 1) % self.NB_MAIN_MENU
         
         self.LCD.screen_img = self._draw_menu()
-        self.LCD.ShowImage(show=not USE_GPIO)
+        self.LCD.ShowImage(show=USE_SCREEN)
         return None
     
     def _handle_interface_level_1(self):
@@ -408,7 +410,7 @@ class Intervalometre():
     def _handle_menu_sequence(self):
         logging.info(f"{self.id_name}:Intervalometre(class):_handle_menu_sequence()")
         self.LCD.screen_img = self._draw_sequence_base()
-        self.LCD.ShowImage(show=not USE_GPIO)
+        self.LCD.ShowImage(show=USE_SCREEN)
         return None
     
     def _handle_menu_battery(self):
@@ -419,14 +421,14 @@ class Intervalometre():
     def _handle_menu_parameters(self):
         logging.info(f"{self.id_name}:Intervalometre(class):_handle_menu_parameters()")
         self.LCD.screen_img = self._draw_parameters_base()
-        self.LCD.ShowImage(show=not USE_GPIO)
+        self.LCD.ShowImage(show=USE_SCREEN)
         return None
     
     def _handle_menu_shutdown(self):
         logging.info(f"{self.id_name}:Intervalometre(class):_handle_menu_shutdown()")
         self.INTERFACE_DEPTH_LEVEL = -1
         self.LCD.screen_img = self._draw_quit()
-        self.LCD.ShowImage(show=not USE_GPIO)
+        self.LCD.ShowImage(show=USE_SCREEN)
         return None
     
     def _handle_menu_wifi_config(self):
@@ -436,13 +438,13 @@ class Intervalometre():
         password = self.WIFI_CONFIG['wpa_passphrase']
         hide = self.WIFI_CONFIG['ignore_broadcast_ssid']
         self.LCD.screen_img = self._draw_QRCode(f"WIFI:T:{autent};S:{ssid};P:{password};H:{hide};;")
-        self.LCD.ShowImage(show=not USE_GPIO)
+        self.LCD.ShowImage(show=USE_SCREEN)
         return None
     
     def _handle_menu_smartphone(self):
         logging.info(f"{self.id_name}:Intervalometre(class):_handle_menu_smartphone()")
         self.LCD.screen_img = self._draw_QRCode(f"HTTP:{self.WEBSITE_CONFIG['ip']}:{self.WEBSITE_CONFIG['port']}")
-        self.LCD.ShowImage(show=not USE_GPIO)
+        self.LCD.ShowImage(show=USE_SCREEN)
         return None
     
     def callback_SW5(self, pin):
@@ -538,7 +540,7 @@ class Intervalometre():
         
         self.LCD.screen_img = img_out
         if disp :
-            self.LCD.ShowImage(show=not USE_GPIO)
+            self.LCD.ShowImage(show=USE_SCREEN)
             return None
         else:
             return img_out
@@ -547,7 +549,7 @@ class Intervalometre():
         logging.info(f"{self.id_name}:Intervalometre(class):run(): Running the Intervalometer(class)")
         
         self.LCD.screen_img = self._draw_menu()
-        self.LCD.ShowImage(show=not USE_GPIO)
+        self.LCD.ShowImage(show=USE_SCREEN)
         
         while not self.QUIT:
             continue
@@ -556,7 +558,7 @@ class Intervalometre():
     
     def Clean_stop(self):
         logging.info(f"{self.id_name}:Intervalometre(class):Clean_stop(): Cleanning Intervalometre(class)")
-        if USE_GPIO:
+        if RUN_ON_RPi:
             for pin in list(self.SW5_DICT.keys()):
                 GPIO.remove_event_detect(pin)
             
