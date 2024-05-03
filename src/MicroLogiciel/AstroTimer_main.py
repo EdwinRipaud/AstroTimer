@@ -14,9 +14,13 @@ import numpy as np
 from lib import LCD_1inch47
 from PIL import Image, ImageDraw, ImageFont
 
+abspath = os.path.abspath(__file__)
+dirname = os.path.dirname(abspath)
+os.chdir(dirname)
+
 OPERATING_SYSTEM = os.uname()
 
-if OPERATING_SYSTEM.sysname == 'Linux' and OPERATING_SYSTEM.machine == 'aarch64':
+if OPERATING_SYSTEM.sysname == 'Linux' and OPERATING_SYSTEM.machine in ['aarch64', 'armv6l']:
     import RPi.GPIO as GPIO
     USE_GPIO = True
 else:
