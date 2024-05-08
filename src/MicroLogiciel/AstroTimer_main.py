@@ -204,26 +204,61 @@ class Intervalometre():
                              }
         
         # Sequence parameters variable
-        self.SEQUENCE_PARAMETERS_DICT = {'shutter'      : 1,
-                                         'nb_picture'   : 3,
-                                         'sleep'        : 0.5,
-                                         }
+        self.SEQUENCE_PARAMETERS_LIST = [{'name':"exposure",
+                                          'text':"Exposure",
+                                          'value':1,
+                                          'step_func':self._sequence_parameters_step,
+                                          'step_param':{'min_step':1, 'max_step':5, 'threshold':10},
+                                          'position':(8, 45),
+                                          },
+                                         {'name':"shots",
+                                          'text':"Shots",
+                                          'value':3,
+                                          'step_func':self._sequence_parameters_step,
+                                          'step_param':{'min_step':1, 'max_step':5, 'threshold':10},
+                                          'position':(8, 70),
+                                          },
+                                         {'name':"delay", 
+                                          'text':"Delay",
+                                          'value':0.5,
+                                          'step_func':self._sequence_parameters_step,
+                                          'step_param':{'min_step':0.25, 'max_step':0.5, 'threshold':4},
+                                          'position':(8, 95),
+                                          },
+                                         {'name':"run",
+                                          'text':"Run ->",
+                                          'value':'',
+                                          'step':None,
+                                          'position':(215, 135),
+                                          },
+                                         ]
         # Parameters base parameters variable
         self.PARAMETER_PARAMETERS_DICT = {'offset_time': 300,
                                           }
         
         logging.debug(f"{self.id_name}:Intervalometre(class):__init__(): initialise global variables")
         # Global variables
-        self.QUIT                   = 0                 # [bool]True to quite the loop
         
-        self.SELECTED_MAIN_MENU     = 0                 # [int]Selected menu position in `MAIN_MENU_LIST`
-        self.INTERFACE_DEPTH_LEVEL  = 0                 # [int]Depth position in the interface (-1 --> shutdown confirmation page)
-        self.BATTERY_LEVEL          = 31                # [float]Battery percentage value
+        self.INTERFACE_DEPTH_LEVEL  = 0                 # [int] Depth position in the interface (-1 --> shutdown confirmation page)
+        self.SELECTED_MAIN_MENU     = 0                 # [int] Selected menu position in `MAIN_MENU_LIST`
+        self.SELECTED_SEQ_PARAM     = 0                 # [int] Selected parameter in `SEQUENCE_PARAMETERS_LIST`
+        self.MODIFY_PARAM           = False             # [bool] True when parameter modification is active
+        self.QUIT                   = 0                 # [bool] True to quite the loop
         
-        self.STATUS_TXT             = "Ready to GO !"   # [str]Message on the status info bar
+        self.SEQUENCE_RUNNING       = False             # [bool] Is a sequence running ?
+        
+        self.BATTERY_LEVEL          = 31                # [float] Battery percentage value
+        
+        self.STATUS_TXT             = "Ready to GO !"   # [str] Message on the status info bar
         
         return None
     
+    
+    def _sequence_parameters_step(self, val, min_step=1, max_step=5, threshold=10):
+        if val >= threshold:
+            return max_step
+        else:
+            return min_step
     
     def _increment_interface(self):
         self.INTERFACE_DEPTH_LEVEL = (self.INTERFACE_DEPTH_LEVEL+1)
@@ -272,32 +307,28 @@ class Intervalometre():
             img_out = img_in
         draw = ImageDraw.Draw(img_out)
         
+        px_icon_left = 4
+        px_icon_top  = 20
+        px_text_left = px_icon_left+60
+        px_text_top  = px_icon_top+7
+        px_step = 60
+        
         logging.debug(f"{self.id_name}:Intervalometre(class):_draw_menu(): Add menu icon")
-        sel = self.SELECTED_MAIN_MENU % self.NB_MAIN_MENU
-        sel_m = (sel-1) % self.NB_MAIN_MENU
-        sel_p = (sel+1) % self.NB_MAIN_MENU
-        
-        asset_menu_1 = Image.open(self.MAIN_MENU_LIST[sel_m]['icon'])
-        img_out.paste(asset_menu_1, (4, 19))
-        draw.text((64, 27), f"{self.MAIN_MENU_LIST[sel_m]['name']}", fill=(255,255,255), font=self.Font_PixelOperator)
-        
-        asset_menu_2 = Image.open(self.MAIN_MENU_LIST[sel]['icon'])
-        img_out.paste(asset_menu_2, (4, 79))
-        draw.text((64, 87), f"{self.MAIN_MENU_LIST[sel]['name']}", fill=(255,255,255), font=self.Font_PixelOperatorBold)
-        
-        asset_menu_3 = Image.open(self.MAIN_MENU_LIST[sel_p]['icon'])
-        img_out.paste(asset_menu_3, (4, 137))
-        draw.text((64, 145), f"{self.MAIN_MENU_LIST[sel_p]['name']}", fill=(255,255,255), font=self.Font_PixelOperator)
+        for k in range(3):
+            sel = (self.SELECTED_MAIN_MENU + k-1) % self.NB_MAIN_MENU
+            asset_menu = Image.open(self.MAIN_MENU_LIST[sel]['icon'])
+            img_out.paste(asset_menu, (px_icon_left, px_icon_top+k*px_step))
+            draw.text((px_text_left, px_text_top+k*px_step), f"{self.MAIN_MENU_LIST[sel]['name']}", fill=(255,255,255), font=self.Font_PixelOperator)
         
         logging.debug(f"{self.id_name}:Intervalometre(class):_draw_menu(): Add menu selection")
         asset_selection = Image.open(f"{self.PATH_ASSETS}Selection.png")
-        img_out.paste(asset_selection, (1, 75), asset_selection.convert("RGBA"))
+        img_out.paste(asset_selection, (1, px_icon_top+px_step-4), asset_selection.convert("RGBA"))
         
         logging.debug(f"{self.id_name}:Intervalometre(class):_draw_menu(): Add scrollbar")
         asset_scrollbar_background = Image.open(f"{self.PATH_ASSETS}Scrollbar_background.png")
-        img_out.paste(asset_scrollbar_background, (311, 33), asset_scrollbar_background.convert("RGBA"))
+        img_out.paste(asset_scrollbar_background, (311, 33))
         asset_scrollbar = Image.open(f"{self.PATH_ASSETS}Scrollbar.png")
-        img_out.paste(asset_scrollbar, (309, 34+self.SCROLLBAR_STEP_MAIN_MENU*sel), asset_scrollbar.convert("RGBA"))
+        img_out.paste(asset_scrollbar, (309, 34+self.SCROLLBAR_STEP_MAIN_MENU*self.SELECTED_MAIN_MENU))
         
         img_out = self.__draw_status_bar(img_out)
         return img_out
@@ -340,16 +371,26 @@ class Intervalometre():
         logging.info(f"{self.id_name}:Intervalometre(class):_draw_sequence_base(): Draw sequence base")
         img_out = Image.new(mode="RGBA", size=self.LCD.size[::-1], color=(0, 0, 0, 255))
         draw = ImageDraw.Draw(img_out)
-        draw.text((8, 45), "Shutter time", fill=(255,255,255), font=self.Font_PixelOperator_small)
-        draw.text((130, 45), f": {self.SEQUENCE_PARAMETERS_DICT['shutter']}", fill=(255,255,255), font=self.Font_PixelOperatorBold_small)
         
-        draw.text((8, 70), "Number ", fill=(255,255,255), font=self.Font_PixelOperator_small)
-        draw.text((130, 70), f": {self.SEQUENCE_PARAMETERS_DICT['nb_picture']}", fill=(255,255,255), font=self.Font_PixelOperatorBold_small)
+        for i in range(len(self.SEQUENCE_PARAMETERS_LIST)):
+            seq_param = self.SEQUENCE_PARAMETERS_LIST[i]
+            text = f"{seq_param['text']: <9}:" if i < len(self.SEQUENCE_PARAMETERS_LIST)-1 else f"{seq_param['text']}"
+            value = f"{seq_param['value']}"
+            x0, y0 = seq_param['position']
+            bbox_text = draw.textbbox((x0, y0), text, font=self.Font_PixelOperatorMonoBold_small)
+            if i == self.SELECTED_SEQ_PARAM:
+                # draw.rounded_rectangle(bbox_text, radius=3, fill=(100, 100, 100))
+                draw.text((x0, y0), text, fill=(255,255,255), font=self.Font_PixelOperatorMonoBold_small)
+                draw.text((bbox_text[2]+35, y0), value, fill=(255,255,255), font=self.Font_PixelOperatorMonoBold_small, anchor='ma')
+                
+                if self.MODIFY_PARAM and i < len(self.SEQUENCE_PARAMETERS_LIST)-1:
+                    draw.rounded_rectangle([bbox_text[2]+5, bbox_text[1]-5, bbox_text[2]+65, bbox_text[3]+5], radius=5)
+                else:
+                    draw.line([bbox_text[0], bbox_text[3], bbox_text[2], bbox_text[3]], width=1)
+            else:
+                draw.text((x0, y0), text, fill=(255,255,255), font=self.Font_PixelOperatorMono_small)
+                draw.text((bbox_text[2]+35, y0), value, fill=(255,255,255), font=self.Font_PixelOperatorMonoBold_small, anchor='ma')
         
-        draw.text((8, 95), "Save time", fill=(255,255,255), font=self.Font_PixelOperator_small)
-        draw.text((130, 95), f": {self.SEQUENCE_PARAMETERS_DICT['sleep']}", fill=(255,255,255), font=self.Font_PixelOperatorBold_small)
-        
-        draw.text((215, 135), "Run ->", fill=(255,255,255), font=self.Font_PixelOperatorMonoBold)
         img_out = self.__draw_status_bar(img_out)
         return img_out
     
@@ -395,7 +436,27 @@ class Intervalometre():
             func()
             return None
         
+        elif self.SW5_DICT[self.SW5_PIN] == "Up":
+            if self.MODIFY_PARAM:
+                func = self.SEQUENCE_PARAMETERS_LIST[self.SELECTED_SEQ_PARAM]['step_func']
+                param = self.SEQUENCE_PARAMETERS_LIST[self.SELECTED_SEQ_PARAM]['step_param']
+                val = self.SEQUENCE_PARAMETERS_LIST[self.SELECTED_SEQ_PARAM]['value']
+                self.SEQUENCE_PARAMETERS_LIST[self.SELECTED_SEQ_PARAM]['value'] += func(val, **param)
+            else:
+                self.SELECTED_SEQ_PARAM = (self.SELECTED_SEQ_PARAM - 1)%len(self.SEQUENCE_PARAMETERS_LIST)
+        
+        elif self.SW5_DICT[self.SW5_PIN] == "Down":
+            if self.MODIFY_PARAM:
+                func = self.SEQUENCE_PARAMETERS_LIST[self.SELECTED_SEQ_PARAM]['step_func']
+                param = self.SEQUENCE_PARAMETERS_LIST[self.SELECTED_SEQ_PARAM]['step_param']
+                val = self.SEQUENCE_PARAMETERS_LIST[self.SELECTED_SEQ_PARAM]['value']
+                val_new = val - func(val, **param)
+                self.SEQUENCE_PARAMETERS_LIST[self.SELECTED_SEQ_PARAM]['value'] = max(0, val_new)
+            else:
+                self.SELECTED_SEQ_PARAM = (self.SELECTED_SEQ_PARAM + 1)%len(self.SEQUENCE_PARAMETERS_LIST)
+        
         if self.INTERFACE_DEPTH_LEVEL == 1:
+            logging.info(f"{self.id_name}:Intervalometre(class):_handle_interface_level_1()")
             func = self.MAIN_MENU_LIST[self.SELECTED_MAIN_MENU]['func']
             func()
         else:
@@ -462,11 +523,22 @@ class Intervalometre():
                 return None
             elif self.INTERFACE_DEPTH_LEVEL == 0:
                 self._increment_interface()
-                logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Enter menu")
+                logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Enter menu {menu['name']}")
             elif self.INTERFACE_DEPTH_LEVEL == 1:
                 self._increment_interface()
                 if menu['name'] in self.LEVEL_1_DICT.keys():
-                    logging.info(f"{self.id_name}:cIntervalometre(class):allback_SW5(): Enter sub-menu of {menu['name']}")
+                    if self.SELECTED_SEQ_PARAM == len(self.SEQUENCE_PARAMETERS_LIST)-1:
+                        logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Enter sub-menu of {menu['name']}")
+                    elif not self.MODIFY_PARAM:
+                        logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Modification of {menu['name']} parameters")
+                        self.MODIFY_PARAM = True
+                        self._decrement_interface()
+                    elif self.MODIFY_PARAM:
+                        logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Stop modification of {menu['name']} parameters")
+                        self.MODIFY_PARAM = False
+                        self._decrement_interface()
+                    else:
+                        logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): This message shoudln't appear...")
                 else:
                     logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): No sub-menu for {menu['name']}")
                     self._decrement_interface()
@@ -480,11 +552,18 @@ class Intervalometre():
                 logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Moving back to main menu")
             elif self.INTERFACE_DEPTH_LEVEL == 0:
                 self._increment_interface()
-                logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Enter menu")
+                logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Enter menu {menu['name']}")
             elif self.INTERFACE_DEPTH_LEVEL == 1:
                 self._increment_interface()
                 if menu['name'] in self.LEVEL_1_DICT.keys():
-                    logging.info(f"{self.id_name}:cIntervalometre(class):allback_SW5(): Enter sub-menu of {menu['name']}")
+                    if self.SELECTED_SEQ_PARAM == len(self.SEQUENCE_PARAMETERS_LIST)-1:
+                        logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Enter sub-menu of {menu['name']}")
+                    elif not self.MODIFY_PARAM:
+                        logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Modification of {menu['name']} parameters")
+                        self.MODIFY_PARAM = True
+                        self._decrement_interface()
+                    else:
+                        logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Enter sub-menu of {menu['name']}")
                 else:
                     logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): No sub-menu for {menu['name']}")
                     self._decrement_interface()
@@ -495,7 +574,12 @@ class Intervalometre():
         elif self.SW5_DICT[self.SW5_PIN] == "Left":
             if self.INTERFACE_DEPTH_LEVEL == 1:
                 self._decrement_interface()
-                logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Moving back to main menu")
+                if menu['name'] in self.LEVEL_1_DICT.keys() and self.MODIFY_PARAM:
+                    logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Stop modification of {menu['name']} parameters")
+                    self._increment_interface()
+                    self.MODIFY_PARAM = False
+                else:
+                    logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Moving back to main menu")
             elif self.INTERFACE_DEPTH_LEVEL > 1:
                 self._decrement_interface()
                 logging.info(f"{self.id_name}:Intervalometre(class):callback_SW5(): Comme back to menu {menu['name']}")
@@ -508,12 +592,19 @@ class Intervalometre():
         elif self.SW5_DICT[self.SW5_PIN] == "Up":
             if self.INTERFACE_DEPTH_LEVEL == 0:
                 pass
+            elif self.INTERFACE_DEPTH_LEVEL == 1:
+                pass
             else:
                 return None
         
         elif self.SW5_DICT[self.SW5_PIN] == "Down":
             if self.INTERFACE_DEPTH_LEVEL == 0:
                 pass
+            elif self.INTERFACE_DEPTH_LEVEL == 1:
+                if menu['name'] in self.LEVEL_1_DICT.keys():
+                    print("Yess modification parameters")
+                else:
+                    pass
             else:
                 return None
         
