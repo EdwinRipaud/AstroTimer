@@ -133,6 +133,11 @@ class Intervalometre():
             
             if 'ignore_broadcast_ssid' not in self.WIFI_CONFIG.keys():
                 self.WIFI_CONFIG['ignore_broadcast_ssid'] = 'false'
+            else:
+                if self.WIFI_CONFIG['ignore_broadcast_ssid']:
+                    self.WIFI_CONFIG['ignore_broadcast_ssid'] = 'true'
+                else:
+                    self.WIFI_CONFIG['ignore_broadcast_ssid'] = 'false'
         else:
             self.WIFI_CONFIG   = {'ssid'                      :'WifiHelloWorld',
                                   'wpa_passphrase'            :'HelloWorld!',
