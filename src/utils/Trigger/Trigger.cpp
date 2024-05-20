@@ -23,33 +23,42 @@ int main(int argc, char** argv) {
 	gpioSetMode(PIN_SHUTTER, PI_OUTPUT);
 	gpioSetMode(PIN_FOCUS, PI_OUTPUT);
 	
-	float t_pose = std::stof(argv[1]);
-	float nb_photo = std::stoi(argv[2]);
-	float wait = std::stof(argv[3]);
+	float exposure = std::stof(argv[1]);
+	float nb_shots = std::stoi(argv[2]);
+	float delay = std::stof(argv[3]);
 	
-	std::cout << "temps de pose = " << t_pose << " s, nombre de photo = " << nb_photo << ", enregistrement = " << wait << "s\n";
+	std::cout << "Exposure : " << exposure << " s; Shots : " << nb_shots << "; Delay : " << delay << "s\n";
 
 	gpioWrite(PIN_FOCUS, true);
 	usleep(OFFSET_t/2);
 	gpioWrite(PIN_FOCUS, false);
 	usleep(OFFSET_t);
-	long t = long(t_pose * 1000000.0);
+	long time = long(exposure * 1000000.0);
 	
-	for (int i=0; i<nb_photo; i++){
-		std::cout << "Photo n°" << i+1 << " : temps de pose = " << t_pose << "\n";
+        int i = 1;
+        while (i < nb_shots) {
+		std::cout << "Image n\370" << i << "\n";
 		gpioWrite(PIN_SHUTTER, true);
 		gpioWrite(PIN_FOCUS, true);
 		usleep(OFFSET_t);
-		usleep(t);
+		usleep(time);
 		gpioWrite(PIN_SHUTTER, false);
 		gpioWrite(PIN_FOCUS, false);
-		std::cout << "Low\n";
-		usleep(wait * 1000000.0);
-	}
+		usleep(delay * 1000000.0);
+                i++;
+        }
+        
+        std::cout << "Image n\370" << i << "\n";
+        gpioWrite(PIN_SHUTTER, true);
+        gpioWrite(PIN_FOCUS, true);
+        usleep(OFFSET_t);
+        usleep(time);
+        gpioWrite(PIN_SHUTTER, false);
+        gpioWrite(PIN_FOCUS, false);
 
 	
 	gpioTerminate();
-	printf("pigpio terminate\n");
+	std::cout << "Terminate pigpio\n";
   return 0;
 }
 
