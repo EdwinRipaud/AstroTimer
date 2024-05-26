@@ -1,0 +1,67 @@
+{
+  "main_menu": {
+    "title": "Main Menu",
+    "options": [
+      {
+        "title": "Sequence",
+        "action": "sequence_menu",
+        "icon": "assets/Icon_Sequence.png"
+      },
+      {
+        "title": "Battery",
+        "action": "coming_soon",
+        "icon": "assets/Icon_Battery.png"
+      },
+      {
+        "title": "Parameters",
+        "action": "coming_soon",
+        "icon": "assets/Icon_Parameters.png"
+      },
+      {
+        "title": "Shutdown",
+        "action": "shutdown_menu",
+        "icon": "assets/Icon_Shutdown.png"
+      },
+      {
+        "title": "Wifi config",
+        "action": "coming_soon",
+        "icon": "assets/Icon_Wifi_config.png"
+      },
+      {
+        "title": "Smartphone",
+        "action": "coming_soon",
+        "icon": "assets/Icon_Smartphone.png"
+      }
+    ]
+  },
+  "shutdown_menu": {
+      "title": "Shutdown",
+      "options": [
+        {
+          "title": "Yes"
+        },
+        {
+          "title": "No"
+        }
+      ]
+  },
+  "sequence_menu": {
+      "title": "Sequence",
+      "options": [
+        {
+          "title": "Run",
+          "action": "shutdown",
+          "keys": ["up"]
+        }
+      ],
+      "parameters": {
+        "Exposure": 15,
+        "Shots": 5,
+        "Delay": 2.5
+      }
+  },
+  "coming_soon": {
+      "title": "Coming soon",
+      "options": []
+  }
+}
