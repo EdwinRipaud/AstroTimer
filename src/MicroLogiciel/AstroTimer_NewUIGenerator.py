@@ -35,12 +35,22 @@ class Menu:
     # TODO: charge the config from a JSON file
     PATH_FONTS  = "fonts/"
     PATH_ASSETS = "assets/"
-    def __init__(self, title:str, options:list, callbacks:list):
+    def __init__(self, title:str, options:list, keys:dict, callbacks:list):
         self.title = title
         self.options = options
-        self.callbacks = callbacks
+        self.keys = keys
+        self.keys_callbacks = {'menu_up':self.menu_up, 'menu_down': self.menu_down, 'select': self.select}
+        self.menu_callbacks = callbacks["menu_callbacks"]
+        
         self.current_option = 0
         self.default_icon = Image.open("assets/Icon_Empty.png")
+        
+        
+        self.keys_callbacks = {
+            key: self.keys_callbacks[key] if key in self.keys_callbacks else callbacks["keys_callbacks"][key]
+            for key in list(self.keys_callbacks.keys())+list(callbacks["keys_callbacks"].keys())
+            }
+        
         # TODO: charge the config from a JSON file
         self.Font_PixelOperator_small           = ImageFont.truetype(self.PATH_FONTS + "pixel_operator/PixelOperator.ttf", 24)
         self.Font_PixelOperatorBold_small       = ImageFont.truetype(self.PATH_FONTS + "pixel_operator/PixelOperator-Bold.ttf", 24)
@@ -152,27 +162,38 @@ class Menu:
 
     def navigate(self, direction):
         # TODO: add keys and callbacks to JSON file
-        if direction == "up":
-            self.current_option = (self.current_option - 1) % len(self.options)
-            self.display()
-        elif direction == "down":
-            self.current_option = (self.current_option + 1) % len(self.options)
-            self.display()
-        elif direction == "right":
-            self.select()
-        elif direction == "left":
-            self.callbacks.get("back", lambda: None)()
-        elif direction == "enter":
-            self.select()
-        elif direction in self.options[self.current_option]["keys"]:
-            print("Callback special action: typicaly go to the selected menu")
-            self.display()
+        # if direction == "up":
+        #     self.current_option = (self.current_option - 1) % len(self.options)
+        #     self.display()
+        # elif direction == "down":
+        #     self.current_option = (self.current_option + 1) % len(self.options)
+        #     self.display()
+        # elif direction == "right":
+        #     self.select()
+        # elif direction == "left":
+        #     self.keys_callbacks.get("back", lambda: None)()
+        # elif direction == "enter":
+        #     self.select()
+        if direction in list(self.keys.keys()):
+            print(f"Callback function: {self.keys[direction]}")
+            self.keys_callbacks[self.keys[direction]]()
+            # self.display()
+        return None
+    
+    def menu_up(self):
+        self.current_option = (self.current_option - 1) % len(self.options)
+        self.display()
+        return None
+    
+    def menu_down(self):
+        self.current_option = (self.current_option + 1) % len(self.options)
+        self.display()
         return None
     
     def select(self):
         action = self.options[self.current_option]["action"]
         print(f"Action: {action}")
-        self.callbacks[action](action)
+        self.menu_callbacks[action](action)
         return None
     
     def trigger_action(self, key):
@@ -180,7 +201,7 @@ class Menu:
             if key in option.get("keys", []):
                 action = option["action"]
                 print(action)
-                self.callbacks[action]()
+                self.menu_callbacks[action]()
                 break
         return None
 
@@ -217,13 +238,20 @@ class MenuManager:
             self.menu_structure = json.load(f)
         
         self.menus = {}
-        self.callbacks = {
+        self.keys_callbacks = {
+            "go_back": self.go_back,
+            }
+        self.menu_callbacks = {
             "main_menu": self.show_menu,
             "sequence_menu": self.show_menu,
             "shutdown_menu": self.show_menu,
-            "coming_soon": self.show_menu,
-            "back": self.go_back
-        }
+            "coming_soon": self.show_menu
+            }
+        
+        self.callbacks = {
+            "keys_callbacks": self.keys_callbacks,
+            "menu_callbacks": self.menu_callbacks
+            }
         
         self.current_menu = None
         self.menu_stack = []
@@ -235,6 +263,7 @@ class MenuManager:
             self.menus[menu_key] = Menu(
                 menu_data["title"],
                 menu_data["options"],
+                menu_data["keys"],
                 self.callbacks
             )
         return None

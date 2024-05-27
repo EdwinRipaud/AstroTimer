@@ -1,6 +1,13 @@
 {
   "main_menu": {
     "title": "Main Menu",
+    "keys": {
+        "enter": "select",
+        "up": "menu_up",
+        "down": "menu_down",
+        "left": "go_back",
+        "right": "select"
+    },
     "options": [
       {
         "title": "Sequence",
@@ -36,6 +43,13 @@
   },
   "shutdown_menu": {
       "title": "Shutdown",
+      "keys": {
+          "enter": "shutdown",
+          "up": "",
+          "down": "",
+          "left": "shutdown",
+          "right": "main_menu"
+      },
       "options": [
         {
           "title": "Yes"
@@ -47,11 +61,17 @@
   },
   "sequence_menu": {
       "title": "Sequence",
+      "keys": {
+          "enter": "select",
+          "up": "menu_up",
+          "down": "menu_down",
+          "left": "go_back",
+          "right": "select"
+      },
       "options": [
         {
           "title": "Run",
-          "action": "shutdown",
-          "keys": ["up"]
+          "action": "shutdown"
         }
       ],
       "parameters": {
@@ -62,6 +82,13 @@
   },
   "coming_soon": {
       "title": "Coming soon",
+      "keys": {
+          "enter": "main_menu",
+          "up": "",
+          "down": "",
+          "left": "main_menu",
+          "right": ""
+      },
       "options": []
   }
 }
