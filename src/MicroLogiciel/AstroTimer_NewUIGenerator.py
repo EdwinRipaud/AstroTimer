@@ -45,42 +45,25 @@ class Menu:
         self.current_option = 0
         self.default_icon = Image.open("assets/Icon_Empty.png")
         
-        
+        # Set callbacks for navigation keys
         self.keys_callbacks = {
             key: self.keys_callbacks[key] if key in self.keys_callbacks else callbacks["keys_callbacks"][key]
             for key in list(self.keys_callbacks.keys())+list(callbacks["keys_callbacks"].keys())
             }
         
-        # TODO: charge the config from a JSON file
-        self.Font_PixelOperator_small           = ImageFont.truetype(self.PATH_FONTS + "pixel_operator/PixelOperator.ttf", 24)
-        self.Font_PixelOperatorBold_small       = ImageFont.truetype(self.PATH_FONTS + "pixel_operator/PixelOperator-Bold.ttf", 24)
-        self.Font_PixelOperatorMono_small       = ImageFont.truetype(self.PATH_FONTS + "pixel_operator/PixelOperatorMono.ttf", 24)
-        self.Font_PixelOperatorMonoBold_small   = ImageFont.truetype(self.PATH_FONTS + "pixel_operator/PixelOperatorMono-Bold.ttf", 24)
-        	
-        self.Font_PixelOperator             = ImageFont.truetype(self.PATH_FONTS + "pixel_operator/PixelOperator.ttf", 32)
-        self.Font_PixelOperatorBold         = ImageFont.truetype(self.PATH_FONTS + "pixel_operator/PixelOperator-Bold.ttf", 32)
-        self.Font_PixelOperatorMono         = ImageFont.truetype(self.PATH_FONTS + "pixel_operator/PixelOperatorMono.ttf", 32)
-        self.Font_PixelOperatorMonoBold     = ImageFont.truetype(self.PATH_FONTS + "pixel_operator/PixelOperatorMono-Bold.ttf", 32)
-        # TODO: charge the config from a JSON file
-        self.BATTERY_DICT = {90.:f"{self.PATH_ASSETS}Icon_battery_90.png",
-                             75.:f"{self.PATH_ASSETS}Icon_battery_75.png",
-                             55.:f"{self.PATH_ASSETS}Icon_battery_55.png",
-                             35.:f"{self.PATH_ASSETS}Icon_battery_35.png",
-                             25.:f"{self.PATH_ASSETS}Icon_battery_25.png",
-                             15.:f"{self.PATH_ASSETS}Icon_battery_15.png",
-                             7.5:f"{self.PATH_ASSETS}Icon_battery_7.5.png",
-                             }
-        # TODO: charge the config from a JSON file
-        self.DISPLAY_DICT   = {'spi_bus'    : 0,
-                               'spi_device' : 0,
-                               'spi_freq'   : 40000000,
-                               'rst'        : 27,
-                               'dc'         : 25,
-                               'bl'         : 18,
-                               'bl_freq'    : 90,
-                               }
-        self.LCD = LCD_1inch47.LCD_1inch47(**self.DISPLAY_DICT)
-        # TODO: charge the config from a JSON file
+        # read config_general.json file to initialise parameters
+        with open('config_general.json', 'r') as f:
+            self.config =  json.load(f)
+        
+        # Set fonts dictionary
+        self.FONTS = {key: ImageFont.truetype(self.PATH_FONTS + data['path'], data['size']) for key, data in self.config["fonts"].items()}
+        
+        # Set battery icon dictionary
+        self.BATTERY_DICT = {data: f"{self.PATH_ASSETS}{key}" for key, data in self.config["battery_icons"].items()}
+        
+        # Initialise LCD class
+        self.LCD = LCD_1inch47.LCD_1inch47(**self.config["display"])
+        
         self.BATTERY_LEVEL          = 47
         self.STATUS_TXT             = "Ready to GO !"
         return None
@@ -112,7 +95,7 @@ class Menu:
             
             img.paste(icon, (4, 20 + i * 60))
             
-            option_font = self.Font_PixelOperator_small if i != 1 else self.Font_PixelOperatorBold
+            option_font = self.FONTS["PixelOperator_M"] if i != 1 else self.FONTS["PixelOperatorBold_M"]
             option_pos = (64, 30 + i * 60) if i != 1 else (64, 27 + i * 60)
             option_text = option["title"] if option["title"] != "" else "[empty title]"
             draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255))
@@ -133,7 +116,7 @@ class Menu:
         icon = self.default_icon
         img.paste(icon, (120, 65))
         
-        option_font = self.Font_PixelOperatorBold
+        option_font = self.FONTS["PixelOperatorBold_M"]
         option_pos = (64, 120)
         option_text = "Comming soon"
         draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255))
@@ -153,7 +136,7 @@ class Menu:
         
         draw.rectangle([(0,0),(320,34)], fill=(0, 0, 0))
         draw.rectangle([(0,0),(320,32)], fill=(64, 64, 64))
-        draw.text((8, 0), f"{self.STATUS_TXT}", fill=(255,255,255), font=self.Font_PixelOperatorMonoBold)
+        draw.text((8, 0), f"{self.STATUS_TXT}", fill=(255,255,255), font=self.FONTS["PixelOperatorMonoBold_M"])
         
         draw.rectangle([(254,0),(320,32)], fill=(64, 64, 64))
         asset_battery = Image.open(self._get_battery_icon())
@@ -219,7 +202,7 @@ class ParameterPage(Menu):
         draw = ImageDraw.Draw(img)
         y_position = 50 + len(self.options) * 30
         for param, value in self.parameters.items():
-            draw.text((10, y_position), f"{param}: {value}", font=self.Font_PixelOperator, fill=(255, 255, 255))
+            draw.text((10, y_position), f"{param}: {value}", font=self.FONTS["PixelOperator_M"], fill=(255, 255, 255))
             y_position += 30
         
         self.LCD.screen_img = self.__draw_status_bar(img)
@@ -233,8 +216,8 @@ class ParameterPage(Menu):
 
 
 class MenuManager:
-    def __init__(self, config_path):
-        with open(config_path, 'r') as f:
+    def __init__(self, UI_config_path):
+        with open(UI_config_path, 'r') as f:
             self.menu_structure = json.load(f)
         
         self.menus = {}
@@ -297,8 +280,8 @@ class MenuManager:
 
 
 class MainApp:
-    def __init__(self, config_path):
-        self.menu_manager = MenuManager(config_path)
+    def __init__(self, UI_config_path):
+        self.menu_manager = MenuManager(UI_config_path)
         self.menu_manager.show_menu("main_menu")
         self.listener = keyboard.Listener(on_press=self.on_press)
         self.listener.start()
@@ -344,7 +327,7 @@ if __name__ == '__main__':
     print(__file__)
     try:
         
-        Intervallometer_V5_app = MainApp("menu_structure.json")
+        Intervallometer_V5_app = MainApp("config_UI_struct.json")
         Intervallometer_V5_app.run()
         
         logging.info(f"{SCRIPT_NAME}: Add shutdown script call")
