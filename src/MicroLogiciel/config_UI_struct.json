@@ -47,8 +47,8 @@
           "enter": "shutdown",
           "up": "",
           "down": "",
-          "left": "shutdown",
-          "right": "main_menu"
+          "left": "",
+          "right": "go_back"
       },
       "options": [
         {
@@ -71,7 +71,7 @@
       "options": [
         {
           "title": "Run",
-          "action": "shutdown"
+          "action": "none"
         }
       ],
       "parameters": {
@@ -83,10 +83,10 @@
   "coming_soon": {
       "title": "Coming soon",
       "keys": {
-          "enter": "main_menu",
+          "enter": "go_back",
           "up": "",
           "down": "",
-          "left": "main_menu",
+          "left": "go_back",
           "right": ""
       },
       "options": []

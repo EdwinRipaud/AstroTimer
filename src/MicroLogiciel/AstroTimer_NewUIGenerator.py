@@ -144,23 +144,10 @@ class Menu:
         return img_out
 
     def navigate(self, direction):
-        # TODO: add keys and callbacks to JSON file
-        # if direction == "up":
-        #     self.current_option = (self.current_option - 1) % len(self.options)
-        #     self.display()
-        # elif direction == "down":
-        #     self.current_option = (self.current_option + 1) % len(self.options)
-        #     self.display()
-        # elif direction == "right":
-        #     self.select()
-        # elif direction == "left":
-        #     self.keys_callbacks.get("back", lambda: None)()
-        # elif direction == "enter":
-        #     self.select()
         if direction in list(self.keys.keys()):
-            print(f"Callback function: {self.keys[direction]}")
-            self.keys_callbacks[self.keys[direction]]()
-            # self.display()
+            if self.keys[direction] not in ['', 'none']:
+                print(f"Callback function: {self.keys[direction]}")
+                self.keys_callbacks[self.keys[direction]]()
         return None
     
     def menu_up(self):
@@ -175,8 +162,11 @@ class Menu:
     
     def select(self):
         action = self.options[self.current_option]["action"]
-        print(f"Action: {action}")
-        self.menu_callbacks[action](action)
+        if action not in ['', 'none']:
+            print(f"Action: {action}")
+            self.menu_callbacks[action](action)
+        else:
+            print("No action yet")
         return None
     
     def trigger_action(self, key):
@@ -190,13 +180,14 @@ class Menu:
 
 
 class ParameterPage(Menu):
-    def __init__(self, name, options, callbacks, parameters):
-        super().__init__(name, options, callbacks)
+    def __init__(self, title, options, keys, callbacks, parameters):
+        super().__init__(title, options, keys, callbacks)
         self.parameters = parameters
         return None
     
     def display(self):
         super().display()
+        print("!!!!!!!!!! DISPLAYING !!!!!!!!!!!!")
         # Additional logic to display parameters
         img = Image.new(mode="RGBA", size=self.LCD.size[::-1], color=(0, 0, 0, 255))
         draw = ImageDraw.Draw(img)
@@ -243,12 +234,22 @@ class MenuManager:
     
     def load_menus(self):
         for menu_key, menu_data in self.menu_structure.items():
-            self.menus[menu_key] = Menu(
-                menu_data["title"],
-                menu_data["options"],
-                menu_data["keys"],
-                self.callbacks
-            )
+            if "parameters" in menu_data:
+                print("jdebmfveibdhvbhefbhbbvsfhdqblhvbhfbdzehvbhbdz", menu_key)
+                self.menus[menu_key] = ParameterPage(
+                    menu_data["title"],
+                    menu_data["options"],
+                    menu_data["keys"],
+                    self.callbacks,
+                    menu_data["parameters"]
+                )
+            else:
+                self.menus[menu_key] = Menu(
+                    menu_data["title"],
+                    menu_data["options"],
+                    menu_data["keys"],
+                    self.callbacks
+                )
         return None
     
     def show_menu(self, menu_key=None):
