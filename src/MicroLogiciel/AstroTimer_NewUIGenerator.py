@@ -25,16 +25,13 @@ RUN_ON_RPi = (OPERATING_SYSTEM.sysname == 'Linux') and (OPERATING_SYSTEM.machine
 if RUN_ON_RPi:
     import RPi.GPIO as GPIO
     GPIO.setmode(GPIO.BCM)
-    USE_SCREEN = False
+    BYPASS_BUILTIN_SCREEN = False
 else:
     from pynput import keyboard
-    USE_SCREEN = True
+    BYPASS_BUILTIN_SCREEN = True
 
 
 class Menu:
-    # TODO: charge the config from a JSON file
-    PATH_FONTS  = "fonts/"
-    PATH_ASSETS = "assets/"
     def __init__(self, title:str, options:list, keys:dict, callbacks:list):
         self.title = title
         self.options = options
@@ -42,8 +39,15 @@ class Menu:
         self.keys_callbacks = {'menu_up':self.menu_up, 'menu_down': self.menu_down, 'select': self.select}
         self.menu_callbacks = callbacks["menu_callbacks"]
         
+        # read config_general.json file to initialise parameters
+        with open('config_general.json', 'r') as f:
+            self.config =  json.load(f)
+        
+        for key, path in self.config["paths"].items():
+            setattr(self, key, path)
+        
         self.current_option = 0
-        self.default_icon = Image.open("assets/Icon_Empty.png")
+        self.default_icon = Image.open(f"{self.PATH_ASSETS}Icon_Empty.png")
         
         # Set callbacks for navigation keys
         self.keys_callbacks = {
@@ -51,9 +55,6 @@ class Menu:
             for key in list(self.keys_callbacks.keys())+list(callbacks["keys_callbacks"].keys())
             }
         
-        # read config_general.json file to initialise parameters
-        with open('config_general.json', 'r') as f:
-            self.config =  json.load(f)
         
         # Set fonts dictionary
         self.FONTS = {key: ImageFont.truetype(self.PATH_FONTS + data['path'], data['size']) for key, data in self.config["fonts"].items()}
@@ -78,9 +79,11 @@ class Menu:
             arg = -1
         return self.BATTERY_DICT[auth_level[arg]]
     
-    def display(self):
+    def display(self, show=True):
+        print("Menu():display()")
         # Generate an image representing the menu
-        img = Image.new(mode="RGBA", size=self.LCD.size[::-1], color=(0, 0, 0, 255))
+        self.LCD.screen_img = Image.new(mode="RGBA", size=self.LCD.size[::-1], color=(0, 0, 0, 255))
+        img = self.LCD.screen_img
         draw = ImageDraw.Draw(img)
         
         # Add options with icons
@@ -103,9 +106,9 @@ class Menu:
         asset_selection = Image.open(f"{self.PATH_ASSETS}Selection.png")
         img.paste(asset_selection, (1, 76), asset_selection.convert("RGBA"))
         
-        self.LCD.screen_img = self.__draw_status_bar(img)
-        self.LCD.ShowImage(show=True)
-        print(f"{self.title}: display()")
+        if show:
+            self.LCD.screen_img = self._draw_status_bar(img)
+            self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
     
     def display_comming_soon(self):
@@ -121,14 +124,15 @@ class Menu:
         option_text = "Comming soon"
         draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255))
         
-        self.LCD.screen_img = self.__draw_status_bar(img)
-        self.LCD.ShowImage(show=True)
+        self.LCD.screen_img = self._draw_status_bar(img)
+        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         print(f"{self.title}: display_comming_soon()")
         return None
     
-    def __draw_status_bar(self, img_in=None):
+    def _draw_status_bar(self, img_in=None):
+        print("Menu():_draw_status_bar():1")
         if not img_in:
-            logging.debug(f"{self.id_name}:Intervalometre(class):__draw_status_bar(): Create new black background image")
+            logging.debug(f"{self.id_name}:Intervalometre(class):_draw_status_bar(): Create new black background image")
             img_out = Image.new(mode="RGBA", size=self.LCD.size[::-1], color=(0, 0, 0, 255))
         else:
             img_out = img_in
@@ -169,16 +173,19 @@ class Menu:
             print("No action yet")
         return None
     
-    def trigger_action(self, key):
-        for option in self.options:
-            if key in option.get("keys", []):
-                action = option["action"]
-                print(action)
-                self.menu_callbacks[action]()
-                break
+    # def trigger_action(self, key):
+    #     for option in self.options:
+    #         if key in option.get("keys", []):
+    #             action = option["action"]
+    #             print(action)
+    #             self.menu_callbacks[action]()
+    #             break
         return None
 
 
+# TODO: Modify ParameterPage() to optimise display() for multi-parameters
+# TODO: Add to ParameterPage() specific methods to modify parameters
+# TODO: Make class for Sequence prameters page or make an add_button() method in ParameterPage()
 class ParameterPage(Menu):
     def __init__(self, title, options, keys, callbacks, parameters):
         super().__init__(title, options, keys, callbacks)
@@ -186,18 +193,21 @@ class ParameterPage(Menu):
         return None
     
     def display(self):
-        super().display()
-        print("!!!!!!!!!! DISPLAYING !!!!!!!!!!!!")
+        super().display(show=False)
+        print("ParameterPage():display()")
         # Additional logic to display parameters
-        img = Image.new(mode="RGBA", size=self.LCD.size[::-1], color=(0, 0, 0, 255))
+        img = self.LCD.screen_img
         draw = ImageDraw.Draw(img)
         y_position = 50 + len(self.options) * 30
         for param, value in self.parameters.items():
+            print(f"{param}: {value}")
             draw.text((10, y_position), f"{param}: {value}", font=self.FONTS["PixelOperator_M"], fill=(255, 255, 255))
             y_position += 30
-        
-        self.LCD.screen_img = self.__draw_status_bar(img)
-        self.LCD.ShowImage(show=True)
+        print("ParameterPage():display():3")
+        img = self._draw_status_bar(img)
+        print("ParameterPage():display():4")
+        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+        print("ParameterPage():display():5")
         return None
     
     def set_parameter(self, param, value):
@@ -206,6 +216,7 @@ class ParameterPage(Menu):
         return None
 
 
+# TODO: Give the class type in the JSON file ? or hard-code it in MenuManager() ?
 class MenuManager:
     def __init__(self, UI_config_path):
         with open(UI_config_path, 'r') as f:
@@ -235,7 +246,6 @@ class MenuManager:
     def load_menus(self):
         for menu_key, menu_data in self.menu_structure.items():
             if "parameters" in menu_data:
-                print("jdebmfveibdhvbhefbhbbvsfhdqblhvbhfbdzehvbhbdz", menu_key)
                 self.menus[menu_key] = ParameterPage(
                     menu_data["title"],
                     menu_data["options"],

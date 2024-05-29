@@ -1,4 +1,8 @@
 {
+    "paths": {
+        "PATH_ASSETS" : "assets/",
+        "PATH_FONTS"  : "fonts/"
+    },
     "display": {
         "spi_bus"   : 0,
         "spi_device": 0,
