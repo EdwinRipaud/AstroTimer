@@ -1,94 +1,80 @@
 {
-  "main_menu": {
-    "title": "Main Menu",
-    "keys": {
-        "enter": "select",
-        "up": "menu_up",
-        "down": "menu_down",
-        "left": "go_back",
-        "right": "select"
+  "main_menu_page" : {
+    "title" : "Main Menu",
+    "class" : "MainMenuPage",
+    "keys" : {
+        "enter" : "menu_select",
+        "up"    : "menu_up",
+        "down"  : "menu_down",
+        "left"  : "go_back",
+        "right" : "menu_select"
     },
-    "options": [
+    "menus" : [
       {
-        "title": "Sequence",
-        "action": "sequence_menu",
-        "icon": "assets/Icon_Sequence.png"
+        "name"  : "Sequence",
+        "action" : "coming_soon",
+        "icon"   : "Icon_Sequence.png"
       },
       {
-        "title": "Battery",
-        "action": "coming_soon",
-        "icon": "assets/Icon_Battery.png"
+        "name"  : "Shutdown",
+        "action" : "shutdown_page",
+        "icon"   : "Icon_Shutdown.png"
       },
       {
-        "title": "Parameters",
-        "action": "coming_soon",
-        "icon": "assets/Icon_Parameters.png"
+        "name"  : "Battery",
+        "action" : "coming_soon",
+        "icon"   : "Icon_Battery.png"
       },
       {
-        "title": "Shutdown",
-        "action": "shutdown_menu",
-        "icon": "assets/Icon_Shutdown.png"
+        "name"  : "Parameters",
+        "action" : "coming_soon",
+        "icon"   : "Icon_Parameters.png"
       },
       {
-        "title": "Wifi config",
-        "action": "coming_soon",
-        "icon": "assets/Icon_Wifi_config.png"
+        "name"  : "Wifi config",
+        "action" : "coming_soon",
+        "icon"   : "Icon_Wifi_config.png"
       },
       {
-        "title": "Smartphone",
-        "action": "coming_soon",
-        "icon": "assets/Icon_Smartphone.png"
+        "name"  : "Smartphone",
+        "action" : "coming_soon",
+        "icon"   : "Icon_Smartphone.png"
       }
     ]
   },
-  "shutdown_menu": {
-      "title": "Shutdown",
-      "keys": {
-          "enter": "shutdown",
-          "up": "",
-          "down": "",
-          "left": "",
-          "right": "go_back"
-      },
-      "options": [
-        {
-          "title": "Yes"
-        },
-        {
-          "title": "No"
-        }
-      ]
-  },
-  "sequence_menu": {
-      "title": "Sequence",
-      "keys": {
-          "enter": "select",
-          "up": "menu_up",
-          "down": "menu_down",
-          "left": "go_back",
-          "right": "select"
-      },
-      "options": [
-        {
-          "title": "Run",
-          "action": "none"
-        }
-      ],
-      "parameters": {
-        "Exposure": 15,
-        "Shots": 5,
-        "Delay": 2.5
+  "coming_soon" : {
+      "title" : "Coming soon",
+      "class" : "ComingSoonPage",
+      "keys" : {
+          "enter" : "go_back",
+          "up"    : "",
+          "down"  : "",
+          "left"  : "go_back",
+          "right" : ""
       }
   },
-  "coming_soon": {
-      "title": "Coming soon",
-      "keys": {
-          "enter": "go_back",
-          "up": "",
-          "down": "",
-          "left": "go_back",
-          "right": ""
+  "shutdown_page" : {
+      "title" : "Shutdown",
+      "class" : "ShutdownPage",
+      "icon"   : "Icon_Shutdown.png",
+      "keys" : {
+          "enter" : "select",
+          "up"    : "",
+          "down"  : "",
+          "left"  : "button_up",
+          "right" : "button_down"
       },
-      "options": []
+      "buttons": [
+          {
+              "name"     : "No",
+              "action"   : "main_menu_page",
+              "position" : [256, 145]
+          },
+          {
+              "name"     : "Yes",
+              "action"   : "shutdown",
+              "position" : [64, 145]
+          }
+      ]
   }
 }
