@@ -91,18 +91,18 @@
         {
           "name"     : "Run",
           "action"   : "run_sequence",
-          "position" : [215, 135]
+          "position" : [280, 145]
         }
       ],
       "parameters" : [
           {
-              "name"  : "Shots",
+              "name"  : "Shot",
               "unit"  : "",
-              "value" : 5,
+              "value" : 1000,
               "step"  : 5
           },
           {
-              "name"  : "Exposure time",
+              "name"  : "Exposure",
               "unit"  : "s",
               "value" : 15,
               "step"  : 5

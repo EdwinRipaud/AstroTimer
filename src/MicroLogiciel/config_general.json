@@ -22,10 +22,10 @@
         "Icon_battery_7.5.png": 7.5
     },
     "fonts": {
-        "PixelOperator_S"        : {"path": "pixel_operator/PixelOperator.ttf",          "size":12},
-        "PixelOperatorBold_S"    : {"path": "pixel_operator/PixelOperator-Bold.ttf",     "size":12},
-        "PixelOperatorMono_S"    : {"path": "pixel_operator/PixelOperatorMono.ttf",      "size":12},
-        "PixelOperatorMonoBold_S": {"path": "pixel_operator/PixelOperatorMono-Bold.ttf", "size":12},
+        "PixelOperator_S"        : {"path": "pixel_operator/PixelOperator.ttf",          "size":16},
+        "PixelOperatorBold_S"    : {"path": "pixel_operator/PixelOperator-Bold.ttf",     "size":16},
+        "PixelOperatorMono_S"    : {"path": "pixel_operator/PixelOperatorMono.ttf",      "size":16},
+        "PixelOperatorMonoBold_S": {"path": "pixel_operator/PixelOperatorMono-Bold.ttf", "size":16},
         
         "PixelOperator_M"        : {"path": "pixel_operator/PixelOperator.ttf",          "size":24},
         "PixelOperatorBold_M"    : {"path": "pixel_operator/PixelOperator-Bold.ttf",     "size":24},

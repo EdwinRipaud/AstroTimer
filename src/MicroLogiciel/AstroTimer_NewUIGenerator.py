@@ -96,7 +96,7 @@ class Page:
         
         draw.rectangle([(0,0),(320,34)], fill=(0, 0, 0))
         draw.rectangle([(0,0),(320,32)], fill=(64, 64, 64))
-        draw.text((8, 16), f"{self.STATUS_TXT}", fill=(255,255,255), font=self.FONTS["PixelOperatorMonoBold_M"], anchor='lm')
+        draw.text((6, 6), f"{self.STATUS_TXT}", fill=(255,255,255), font=self.FONTS["PixelOperatorMonoBold_L"], anchor='lt')
         
         draw.rectangle([(254,0),(320,32)], fill=(64, 64, 64))
         asset_battery = Image.open(self._get_battery_icon())
@@ -190,7 +190,7 @@ class Button(Page):
         self._config = config
         
         self.button_options = self._config["buttons"]
-        self.current_button = 0 if len(self.button_options) > 1 else None
+        self.current_button = 0 if len(self.button_options) > 1 else -1
         
         # Set callbacks for navigation keys
         self.keys_callbacks = {
@@ -258,6 +258,21 @@ class Parameter(Page):
         self.current_parameter = 0
         self.parameter_seleceted = 0
         
+        self.pose = {
+            'left' : 12,
+            'top' : 52,
+            'step' : 36,
+            'pad' : 14,
+            'offset' : 8,
+            'radius' : 8,
+            'length' : 90,
+            'right' : max([
+                ImageDraw.Draw(self.LCD.screen_img).textbbox((12, 0), param['name'],
+                               font=self.FONTS["PixelOperatorBold_M"], anchor='lm')[2]
+                for param in self.parameter_options
+                ])
+            }
+        
         # Set callbacks for navigation keys
         self.keys_callbacks = {
             'up'     : [self.parameter_up, self.parameter_increment],
@@ -316,36 +331,40 @@ class Parameter(Page):
         logging.info("Parameter.display(): add parameter elements to the display")
         super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
-        # Add menus with icons
+        # Add parameters with values
         for i in range(len(self.parameter_options)):
             parameter = self.parameter_options[i]
             
-            name_font = self.FONTS["PixelOperator_M"] if i != self.current_parameter else self.FONTS["PixelOperatorBold_M"]
-            name_pos = (16, 55 + i * 35)
-            name_text = parameter["name"] if parameter["name"] != "" else "[empty name]"
-            draw.text(name_pos, name_text, font=name_font, fill=(255, 255, 255), anchor='lm')
+            font = self.FONTS["PixelOperator_M"] if i != self.current_parameter else self.FONTS["PixelOperatorBold_M"]
             
-            box_pose = (170, 40 + i * 35, 270, 70 + i * 35)
+            # TODO: modify to make easier adjustement of the elements position, sepcificaly based on the name position
+            # TODO: maybe add a position field in the JSON for horizontal position of elements 'name', 'value' and 'unit'
+            
+            name_pos = (self.pose['left'], self.pose['top'] + i * self.pose['step'])
+            name_text = parameter["name"] if parameter["name"] != "" else "[empty name]"
+            draw.text(name_pos, name_text, font=font, fill=(255, 255, 255), anchor='lm')
+            
+            box_pose = (self.pose['right']+self.pose['offset'],
+                        self.pose['top']-self.pose['pad'] + i * self.pose['step'],
+                        self.pose['right']+self.pose['offset']+self.pose['length'],
+                        self.pose['top']+self.pose['pad'] + i * self.pose['step'])
             if i == self.current_parameter:
                 if self.parameter_seleceted:
-                    draw.rounded_rectangle(box_pose, radius=6, fill=(64, 64, 64), outline=(255, 255, 255), width=2)
-                    draw.text((175, 55 + i * 35), "<>", font=self.FONTS["PixelOperatorBold_M"], fill=(255, 255, 255), anchor='lm')
+                    draw.rounded_rectangle(box_pose, radius=self.pose['radius'], fill=(64, 64, 64), outline=(255, 255, 255), width=2)
+                    draw.text((self.pose['right']+2*self.pose['offset'], self.pose['top'] + i * self.pose['step']), "<>", font=self.FONTS["PixelOperatorBold_M"], fill=(255, 255, 255), anchor='lm')
                 else:
-                    draw.rounded_rectangle(box_pose, radius=6, fill=(0, 0, 0), outline=(255, 255, 255), width=2)
+                    draw.rounded_rectangle(box_pose, radius=self.pose['radius'], fill=(0, 0, 0), outline=(255, 255, 255), width=2)
             else:
-                draw.rounded_rectangle(box_pose, radius=6, fill=(0, 0, 0), outline=(64, 64, 64), width=1)
+                draw.rounded_rectangle(box_pose, radius=self.pose['radius'], fill=(0, 0, 0), outline=(64, 64, 64), width=1)
             
-            param_font = self.FONTS["PixelOperator_M"] if i != self.current_parameter else self.FONTS["PixelOperatorBold_M"]
-            param_pos = (260, 55 + i * 35)
+            param_pos = (box_pose[2]-self.pose['offset'], self.pose['top'] + i * self.pose['step'])
             param_text = str(parameter["value"])
-            draw.text(param_pos, param_text, font=param_font, fill=(255, 255, 255), anchor='rm')
+            draw.text(param_pos, param_text, font=font, fill=(255, 255, 255), anchor='rm')
             
-            unit_font = self.FONTS["PixelOperator_M"] if i != self.current_parameter else self.FONTS["PixelOperatorBold_M"]
-            unit_pos = (280, 55 + i * 35)
+            unit_pos = (box_pose[2]+self.pose['offset'], self.pose['top'] + i * self.pose['step'])
             unit_text = parameter["unit"]
-            draw.text(unit_pos, unit_text, font=unit_font, fill=(255, 255, 255), anchor='lm')
+            draw.text(unit_pos, unit_text, font=font, fill=(255, 255, 255), anchor='lm')
         return None
-
 
 # TODO: Create a class Info() to handle general information display
 
@@ -468,7 +487,7 @@ class ShutdownPage(Button):
         return None
 
 
-class SequenceParameterPage(Parameter):
+class SequenceParameterPage(Parameter, Button):
     def __init__(self, config, callbacks):
         logging.info("SequenceParameterPage.__init__(): initialise SequenceParameterPage")
         super().__init__(config)
@@ -492,12 +511,6 @@ class SequenceParameterPage(Parameter):
     def display(self):
         logging.info("SequenceParameterPage.display(): display SequenceParameterPage")
         super().display()
-        draw = ImageDraw.Draw(self.LCD.screen_img)
-        
-        option_font = self.FONTS["PixelOperatorBold_M"]
-        option_pos = (315, 170)
-        option_text = "TODO"
-        draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255), anchor='rd')
         
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
@@ -519,10 +532,7 @@ class SequenceParameterPage(Parameter):
     
     def navigate(self, direction):
         if direction == 'left':
-            if self.parameter_seleceted:
-                self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
-            else:
-                pass
+            self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
         else:
             super().navigate(direction)
         logging.info(f"SequenceParameterPage.navigate({direction}): execute '{self.action.__name__}'")
@@ -613,7 +623,7 @@ class PageManager:
 class MainApp:
     def __init__(self, UI_config_path):
         self.page_manager = PageManager(UI_config_path)
-        self.page_manager.show_page("sequence_parameter_page")#"main_menu_page")
+        self.page_manager.show_page("main_menu_page")
         self.listener = keyboard.Listener(on_press=self.on_press)
         self.listener.start()
         self.QUIT = False
