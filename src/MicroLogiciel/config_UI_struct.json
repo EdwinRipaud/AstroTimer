@@ -12,8 +12,18 @@
     "menus" : [
       {
         "name"  : "Sequence",
-        "action" : "coming_soon",
+        "action" : "sequence_parameter_page",
         "icon"   : "Icon_Sequence.png"
+      },
+      {
+        "name"  : "Battery",
+        "action" : "coming_soon_page",
+        "icon"   : "Icon_Battery.png"
+      },
+      {
+        "name"  : "Parameters",
+        "action" : "coming_soon_page",
+        "icon"   : "Icon_Parameters.png"
       },
       {
         "name"  : "Shutdown",
@@ -21,28 +31,18 @@
         "icon"   : "Icon_Shutdown.png"
       },
       {
-        "name"  : "Battery",
-        "action" : "coming_soon",
-        "icon"   : "Icon_Battery.png"
-      },
-      {
-        "name"  : "Parameters",
-        "action" : "coming_soon",
-        "icon"   : "Icon_Parameters.png"
-      },
-      {
         "name"  : "Wifi config",
-        "action" : "coming_soon",
+        "action" : "coming_soon_page",
         "icon"   : "Icon_Wifi_config.png"
       },
       {
         "name"  : "Smartphone",
-        "action" : "coming_soon",
+        "action" : "coming_soon_page",
         "icon"   : "Icon_Smartphone.png"
       }
     ]
   },
-  "coming_soon" : {
+  "coming_soon_page" : {
       "title" : "Coming soon",
       "class" : "ComingSoonPage",
       "keys" : {
@@ -74,6 +74,44 @@
               "name"     : "Yes",
               "action"   : "shutdown",
               "position" : [64, 145]
+          }
+      ]
+  },
+  "sequence_parameter_page" : {
+      "title" : "Sequence parameter",
+      "class" : "SequenceParameterPage",
+      "keys" : {
+          "enter" : "select",
+          "up"    : "up",
+          "down"  : "down",
+          "left"  : "back",
+          "right" : "run"
+      },
+      "buttons" : [
+        {
+          "name"     : "Run",
+          "action"   : "run_sequence",
+          "position" : [215, 135]
+        }
+      ],
+      "parameters" : [
+          {
+              "name"  : "Shots",
+              "unit"  : "",
+              "value" : 5,
+              "step"  : 5
+          },
+          {
+              "name"  : "Exposure time",
+              "unit"  : "s",
+              "value" : 15,
+              "step"  : 5
+          },
+          {
+              "name"  : "Interval",
+              "unit"  : "s",
+              "value" : 2.5,
+              "step"  : 0.5
           }
       ]
   }

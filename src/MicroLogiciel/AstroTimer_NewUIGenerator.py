@@ -111,10 +111,10 @@ class Page:
     
     def navigate(self, direction):
         logging.info("Page.navigate(): navigate in the page")
-        if direction in list(self.keys.keys()):
+        if direction in self.keys.keys():
             if self.keys[direction] not in ['', 'none']:
                 logging.info(f"Page.navigate({direction}): callback function '{self.keys[direction]}'")
-                self.keys_callbacks[self.keys[direction]]()
+                self.action = self.keys_callbacks[self.keys[direction]]
         return None
 
 
@@ -128,7 +128,11 @@ class Menu(Page):
         self.current_menu = 0
         
         # Set callbacks for navigation keys
-        self.keys_callbacks = {'menu_up':self.menu_up, 'menu_down': self.menu_down, 'menu_select': self.menu_select}
+        self.keys_callbacks = {
+            'menu_up'     : self.menu_up,
+            'menu_down'   : self.menu_down,
+            'menu_select' : self.menu_select,
+            }
         return None
     
     def menu_up(self):
@@ -189,7 +193,11 @@ class Button(Page):
         self.current_button = 0 if len(self.button_options) > 1 else None
         
         # Set callbacks for navigation keys
-        self.keys_callbacks = {'button_up':self.button_up, 'button_down': self.button_down, 'button_select': self.button_select}
+        self.keys_callbacks = {
+            'button_up'     : self.button_up,
+            'button_down'   : self.button_down,
+            'button_select' : self.button_select,
+            }
         return None
     
     def button_up(self):
@@ -219,7 +227,7 @@ class Button(Page):
         super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
         # Add buttons
-        for i in range(min(3, len(self.button_options))):
+        for i in range(len(self.button_options)):
             idx = (i+self.current_button)%len(self.button_options)
             button = self.button_options[idx]
             
@@ -239,7 +247,105 @@ class Button(Page):
         
         return None
 
-# TODO: Create class Parameter() to handle display, selection and modification of parameters
+
+class Parameter(Page):
+    def __init__(self, config):
+        logging.info("Parameter.__init__(): initialise parameter specific options")
+        super().__init__(config)
+        self._config = config
+        
+        self.parameter_options = self._config["parameters"]
+        self.current_parameter = 0
+        self.parameter_seleceted = 0
+        
+        # Set callbacks for navigation keys
+        self.keys_callbacks = {
+            'up'     : [self.parameter_up, self.parameter_increment],
+            'down'   : [self.parameter_down, self.parameter_decrement],
+            }
+        return None
+    
+    def parameter_up(self):
+        logging.info("Parameter.parameter_up(): move current parameter up")
+        self.current_parameter = (self.current_parameter - 1) % len(self.parameter_options)
+        self.display()
+        return None
+    
+    def parameter_down(self):
+        logging.info("Parameter.parameter_down(): move current parameter down")
+        self.current_parameter = (self.current_parameter + 1) % len(self.parameter_options)
+        self.display()
+        return None
+    
+    def parameter_select(self):
+        logging.info("Parameter.parameter_select(): handle parameter selection callbacks")
+        self.parameter_seleceted = (self.parameter_seleceted+1)%2
+        logging.info(f"Parameter.parameter_select(): Selected {bool(self.parameter_seleceted)}")
+        self.display()
+        return None
+    
+    def parameter_increment(self):
+        logging.info("Parameter.parameter_increment(): increase current parameter value")
+        parameter = self.parameter_options[self.current_parameter]
+        value = parameter['value']
+        step = parameter['step']
+        parameter['value'] = max(0, value + step)
+        self.display()
+        return None
+    
+    def parameter_decrement(self):
+        logging.info("Parameter.parameter_decrement(): decrease current parameter value")
+        parameter = self.parameter_options[self.current_parameter]
+        value = parameter['value']
+        step = parameter['step']
+        parameter['value'] = max(0, value - step)
+        self.display()
+        return None
+    
+    def navigate(self, direction):
+        logging.info("Parameter.navigate(): navigate in the parameters")
+        if direction in self.keys.keys():
+            if self.keys[direction] not in ['', 'none']:
+                if type(self.keys_callbacks[self.keys[direction]]) is list:
+                    self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
+                else:
+                    self.action = self.keys_callbacks[self.keys[direction]]
+        return None
+    
+    def display(self):
+        logging.info("Parameter.display(): add parameter elements to the display")
+        super().display()
+        draw = ImageDraw.Draw(self.LCD.screen_img)
+        # Add menus with icons
+        for i in range(len(self.parameter_options)):
+            parameter = self.parameter_options[i]
+            
+            name_font = self.FONTS["PixelOperator_M"] if i != self.current_parameter else self.FONTS["PixelOperatorBold_M"]
+            name_pos = (16, 55 + i * 35)
+            name_text = parameter["name"] if parameter["name"] != "" else "[empty name]"
+            draw.text(name_pos, name_text, font=name_font, fill=(255, 255, 255), anchor='lm')
+            
+            box_pose = (170, 40 + i * 35, 270, 70 + i * 35)
+            if i == self.current_parameter:
+                if self.parameter_seleceted:
+                    draw.rounded_rectangle(box_pose, radius=6, fill=(64, 64, 64), outline=(255, 255, 255), width=2)
+                    draw.text((175, 55 + i * 35), "<>", font=self.FONTS["PixelOperatorBold_M"], fill=(255, 255, 255), anchor='lm')
+                else:
+                    draw.rounded_rectangle(box_pose, radius=6, fill=(0, 0, 0), outline=(255, 255, 255), width=2)
+            else:
+                draw.rounded_rectangle(box_pose, radius=6, fill=(0, 0, 0), outline=(64, 64, 64), width=1)
+            
+            param_font = self.FONTS["PixelOperator_M"] if i != self.current_parameter else self.FONTS["PixelOperatorBold_M"]
+            param_pos = (260, 55 + i * 35)
+            param_text = str(parameter["value"])
+            draw.text(param_pos, param_text, font=param_font, fill=(255, 255, 255), anchor='rm')
+            
+            unit_font = self.FONTS["PixelOperator_M"] if i != self.current_parameter else self.FONTS["PixelOperatorBold_M"]
+            unit_pos = (280, 55 + i * 35)
+            unit_text = parameter["unit"]
+            draw.text(unit_pos, unit_text, font=unit_font, fill=(255, 255, 255), anchor='lm')
+        return None
+
 
 # TODO: Create a class Info() to handle general information display
 
@@ -272,6 +378,12 @@ class ComingSoonPage(Page):
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
+    
+    def navigate(self, direction):
+        super().navigate(direction)
+        logging.info(f"ComingSoonPage.navigate({direction}): execute '{self.action.__name__}'")
+        self.action()
+        return None
 
 
 class MainMenuPage(Menu):
@@ -285,6 +397,8 @@ class MainMenuPage(Menu):
         
         # Set callbacks for navigation
         self.page_callbacks = {**self.page_callbacks, **callbacks["page_callbacks"]}
+        
+        self.action = lambda: None
         return None
     
     def display(self):
@@ -292,6 +406,12 @@ class MainMenuPage(Menu):
         super().display()
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+        return None
+    
+    def navigate(self, direction):
+        super().navigate(direction)
+        logging.info(f"MainMenuPage.navigate({direction}): execute '{self.action.__name__}'")
+        self.action()
         return None
 
 
@@ -306,6 +426,8 @@ class ShutdownPage(Button):
         
         # Set callbacks for navigation
         self.page_callbacks = {**callbacks["page_callbacks"]}
+        
+        self.action = lambda: None
         return None
     
     def display(self):
@@ -337,10 +459,76 @@ class ShutdownPage(Button):
             self.keys_callbacks[action]()
         else:
             logging.info("ShutdownPage.select(): no action to trigger")
-        
         return
+    
+    def navigate(self, direction):
+        super().navigate(direction)
+        logging.info(f"ShutdownPage.navigate({direction}): execute '{self.action.__name__}'")
+        self.action()
+        return None
 
-# TODO: Create class SequenceParameterPage() to specificaly fuze Parameter() and Button() class
+
+class SequenceParameterPage(Parameter):
+    def __init__(self, config, callbacks):
+        logging.info("SequenceParameterPage.__init__(): initialise SequenceParameterPage")
+        super().__init__(config)
+        self._config = config
+        
+        # Set callbacks for navigation keys
+        self.keys_callbacks = {
+            **self.keys_callbacks,
+            'select' : self.parameter_select,
+            'back' : [callbacks["keys_callbacks"]['go_back'], self.parameter_select],
+            'run' : [self.parameter_select, lambda:print("Run function not implemented yet!")],
+            **callbacks["keys_callbacks"],
+            }
+        
+        # Set callbacks for navigation
+        self.page_callbacks = {**callbacks["page_callbacks"]}
+        
+        self.action = lambda: None
+        return None
+    
+    def display(self):
+        logging.info("SequenceParameterPage.display(): display SequenceParameterPage")
+        super().display()
+        draw = ImageDraw.Draw(self.LCD.screen_img)
+        
+        option_font = self.FONTS["PixelOperatorBold_M"]
+        option_pos = (315, 170)
+        option_text = "TODO"
+        draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255), anchor='rd')
+        
+        self._draw_status_bar()
+        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+        return None
+    
+    def select(self):
+        logging.info("SequenceParameterPage.select(): handle selection action")
+        action = self.button_options[self.current_button]['action']
+        
+        if action in self.page_callbacks.keys():
+            logging.info(f"SequenceParameterPage.select(): action '{action}'")
+            self.page_callbacks[action](action)
+        elif action in self.keys_callbacks.keys():
+            logging.info(f"SequenceParameterPage.select(): action '{action}'")
+            self.keys_callbacks[action]()
+        else:
+            logging.info("SequenceParameterPage.select(): no action to trigger")
+        return
+    
+    def navigate(self, direction):
+        if direction == 'left':
+            if self.parameter_seleceted:
+                self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
+            else:
+                pass
+        else:
+            super().navigate(direction)
+        logging.info(f"SequenceParameterPage.navigate({direction}): execute '{self.action.__name__}'")
+        self.action()
+        return None
+
 
 # TODO: Create class SettingPage() to handle setting modification page
 
@@ -370,6 +558,7 @@ class PageManager:
             "MainMenuPage": MainMenuPage,
             "ComingSoonPage": ComingSoonPage,
             "ShutdownPage": ShutdownPage,
+            "SequenceParameterPage": SequenceParameterPage,
             }
         
         # Define interface level callback function
@@ -380,9 +569,9 @@ class PageManager:
         #
         self.page_callbacks = {
             "main_menu_page": self.show_page,
-            "sequence_page": self.show_page,
+            "sequence_parameter_page": self.show_page,
             "shutdown_page": self.show_page,
-            "coming_soon": self.show_page,
+            "coming_soon_page": self.show_page,
             }
         
         self.callbacks = {
@@ -424,7 +613,7 @@ class PageManager:
 class MainApp:
     def __init__(self, UI_config_path):
         self.page_manager = PageManager(UI_config_path)
-        self.page_manager.show_page("main_menu_page")
+        self.page_manager.show_page("sequence_parameter_page")#"main_menu_page")
         self.listener = keyboard.Listener(on_press=self.on_press)
         self.listener.start()
         self.QUIT = False
@@ -433,9 +622,7 @@ class MainApp:
     def on_press(self, key):
         try:
             if self.page_manager.current_page._config['class'] == "MainMenuPage":
-                print("Yes i'm in MainMenuPage")
                 if key.name == "left":
-                    print("Yess I click left")
                     if self.page_manager.current_page:
                         self.page_manager.page_stack.append(self.page_manager.current_page)
                     self.page_manager.current_page = self.page_manager.pages["shutdown_page"]
