@@ -44,7 +44,6 @@ logging.basicConfig(level=logging.INFO)
 
 # TODO: Move all high level class to an other .py to keep main.py clear
 
-# TODO: Make class Page() a generic class with only high level methodes
 class Page:
     def __init__(self, page_config:dict):
         logging.info("Page.__init__(): initialise utils attributes for the page")
@@ -96,7 +95,11 @@ class Page:
         
         draw.rectangle([(0,0),(320,34)], fill=(0, 0, 0))
         draw.rectangle([(0,0),(320,32)], fill=(64, 64, 64))
-        draw.text((6, 6), f"{self.STATUS_TXT}", fill=(255,255,255), font=self.FONTS["PixelOperatorMonoBold_L"], anchor='lt')
+        draw.text((6, 6),
+                  f"{self.STATUS_TXT}",
+                  fill=(255,255,255),
+                  font=self.FONTS["PixelOperatorMonoBold_L"],
+                  anchor='lt')
         
         draw.rectangle([(254,0),(320,32)], fill=(64, 64, 64))
         asset_battery = Image.open(self._get_battery_icon())
@@ -128,11 +131,19 @@ class Menu(Page):
         self.current_menu = 0
         
         # Set callbacks for navigation keys
-        self.keys_callbacks = {
-            'menu_up'     : self.menu_up,
-            'menu_down'   : self.menu_down,
-            'menu_select' : self.menu_select,
-            }
+        try:
+            self.keys_callbacks = {
+                **self.keys_callbacks,
+                'menu_up'     : self.menu_up,
+                'menu_down'   : self.menu_down,
+                'menu_select' : self.menu_select,
+                }
+        except AttributeError or NameError or KeyError:
+            self.keys_callbacks = {
+                'menu_up'     : self.menu_up,
+                'menu_down'   : self.menu_down,
+                'menu_select' : self.menu_select,
+                }
         return None
     
     def menu_up(self):
@@ -176,7 +187,11 @@ class Menu(Page):
             option_font = self.FONTS["PixelOperator_L"] if i != 1 else self.FONTS["PixelOperatorBold_L"]
             option_pos = (64, 42 + i * 60)
             option_text = menu["name"] if menu["name"] != "" else "[empty name]"
-            draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255), anchor='lm')
+            draw.text(option_pos,
+                      option_text,
+                      font=option_font,
+                      fill=(255, 255, 255),
+                      anchor='lm')
         
         asset_selection = Image.open("assets/Selection.png")
         self.LCD.screen_img.paste(asset_selection, (1, 76), asset_selection.convert("RGBA"))
@@ -190,14 +205,38 @@ class Button(Page):
         self._config = config
         
         self.button_options = self._config["buttons"]
-        self.current_button = 0 if len(self.button_options) > 1 else -1
+        self.current_button = 0
+        self.button_active = True
+        
+        # TODO: initilaize from JSON parameter
+        bboxs = [ImageDraw.Draw(self.LCD.screen_img).textbbox(tuple(button['position']),
+                                                              button["name"] if button["name"] != "" else "[empty name]",
+                                                              font=self.FONTS["PixelOperatorBold_M"],
+                                                              anchor='mm'
+                                                              ) for button in self.button_options]
+        self.button_pose = {
+            'left'   : [bbox[0] for bbox in bboxs],
+            'right'  : [bbox[2] for bbox in bboxs],
+            'top'    : [bbox[1] for bbox in bboxs],
+            'bottom' : [bbox[3] for bbox in bboxs],
+            'pad'    : 10,
+            'radius' : 8,
+            }
         
         # Set callbacks for navigation keys
-        self.keys_callbacks = {
-            'button_up'     : self.button_up,
-            'button_down'   : self.button_down,
-            'button_select' : self.button_select,
-            }
+        try:
+            self.keys_callbacks = {
+                **self.keys_callbacks,
+                'button_up'     : self.button_up,
+                'button_down'   : self.button_down,
+                'button_select' : self.button_select,
+                }
+        except AttributeError or NameError or KeyError:
+            self.keys_callbacks = {
+                'button_up'     : self.button_up,
+                'button_down'   : self.button_down,
+                'button_select' : self.button_select,
+                }
         return None
     
     def button_up(self):
@@ -219,7 +258,7 @@ class Button(Page):
             logging.info(f"Button.button_select(): action '{action}'")
             self.page_callbacks[action](action)
         else:
-            print("No action yet")
+            logging.info("Button.button_select(): No action yet !")
         return None
     
     def display(self):
@@ -228,22 +267,35 @@ class Button(Page):
         draw = ImageDraw.Draw(self.LCD.screen_img)
         # Add buttons
         for i in range(len(self.button_options)):
-            idx = (i+self.current_button)%len(self.button_options)
-            button = self.button_options[idx]
+            button = self.button_options[i]
             
-            option_font = self.FONTS["PixelOperator_M"] if i != 0 else self.FONTS["PixelOperatorBold_M"]
+            option_font = self.FONTS["PixelOperator_M"] if i != self.current_button else self.FONTS["PixelOperatorBold_M"]
             option_pos = tuple(button['position'])
             option_text = button["name"] if button["name"] != "" else "[empty name]"
-            textbbox = draw.textbbox(option_pos, option_text, font=option_font, anchor='mm')
             
-            pad = 10
-            box_pose = (textbbox[0]-pad, textbbox[1]-pad, textbbox[2]+pad, textbbox[3]+pad)
-            draw.rounded_rectangle(box_pose, radius=8,
-                                   fill=(0, 0, 0) if i != 0 else (64, 64, 64),
-                                   outline=(0, 0, 0) if i != 0 else (255, 255, 255),
-                                   width=0 if i != 0 else 2)
-            
-            draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255), anchor='mm')
+            if (i == self.current_button) and (self.button_active):
+                draw.rounded_rectangle((self.button_pose['left'][i]-self.button_pose['pad'],
+                                        self.button_pose['top'][i]-self.button_pose['pad'],
+                                        self.button_pose['right'][i]+self.button_pose['pad'],
+                                        self.button_pose['bottom'][i]+self.button_pose['pad']),
+                                       radius=self.button_pose['radius'],
+                                       fill=(64, 64, 64),
+                                       outline=(255, 255, 255),
+                                       width=2)
+            else:
+                draw.rounded_rectangle((self.button_pose['left'][i]-self.button_pose['pad'],
+                                        self.button_pose['top'][i]-self.button_pose['pad'],
+                                        self.button_pose['right'][i]+self.button_pose['pad'],
+                                        self.button_pose['bottom'][i]+self.button_pose['pad']),
+                                       radius=self.button_pose['radius'],
+                                       fill=(0, 0, 0),
+                                       outline=(64, 64, 64),
+                                       width=1)
+            draw.text(option_pos,
+                      option_text,
+                      font=option_font,
+                      fill=(255, 255, 255),
+                      anchor='mm')
         
         return None
 
@@ -257,27 +309,35 @@ class Parameter(Page):
         self.parameter_options = self._config["parameters"]
         self.current_parameter = 0
         self.parameter_seleceted = 0
+        self.parameter_active = True
         
-        self.pose = {
-            'left' : 12,
-            'top' : 52,
-            'step' : 36,
-            'pad' : 14,
+        # TODO: initilaize from JSON parameter
+        self.parameters_pose = {
+            'left'   : 12,
+            'top'    : 52,
+            'step'   : 36,
+            'pad'    : 14,
             'offset' : 8,
             'radius' : 8,
             'length' : 90,
-            'right' : max([
+            'right'  : max([
                 ImageDraw.Draw(self.LCD.screen_img).textbbox((12, 0), param['name'],
                                font=self.FONTS["PixelOperatorBold_M"], anchor='lm')[2]
-                for param in self.parameter_options
-                ])
+                for param in self.parameter_options]),
             }
         
         # Set callbacks for navigation keys
-        self.keys_callbacks = {
-            'up'     : [self.parameter_up, self.parameter_increment],
-            'down'   : [self.parameter_down, self.parameter_decrement],
-            }
+        try:
+            self.keys_callbacks = {
+                **self.keys_callbacks,
+                'parameter_up'   : [self.parameter_up, self.parameter_increment],
+                'parameter_down' : [self.parameter_down, self.parameter_decrement],
+                }
+        except AttributeError or NameError or KeyError:
+            self.keys_callbacks = {
+                'parameter_up'   : [self.parameter_up, self.parameter_increment],
+                'parameter_down' : [self.parameter_down, self.parameter_decrement],
+                }
         return None
     
     def parameter_up(self):
@@ -337,33 +397,58 @@ class Parameter(Page):
             
             font = self.FONTS["PixelOperator_M"] if i != self.current_parameter else self.FONTS["PixelOperatorBold_M"]
             
-            # TODO: modify to make easier adjustement of the elements position, sepcificaly based on the name position
-            # TODO: maybe add a position field in the JSON for horizontal position of elements 'name', 'value' and 'unit'
-            
-            name_pos = (self.pose['left'], self.pose['top'] + i * self.pose['step'])
+            name_pos = (self.parameters_pose['left'], self.parameters_pose['top'] + i * self.parameters_pose['step'])
             name_text = parameter["name"] if parameter["name"] != "" else "[empty name]"
-            draw.text(name_pos, name_text, font=font, fill=(255, 255, 255), anchor='lm')
+            draw.text(name_pos,
+                      name_text,
+                      font=font,
+                      fill=(255, 255, 255),
+                      anchor='lm')
             
-            box_pose = (self.pose['right']+self.pose['offset'],
-                        self.pose['top']-self.pose['pad'] + i * self.pose['step'],
-                        self.pose['right']+self.pose['offset']+self.pose['length'],
-                        self.pose['top']+self.pose['pad'] + i * self.pose['step'])
-            if i == self.current_parameter:
+            box_pose = (self.parameters_pose['right']+self.parameters_pose['offset'],
+                        self.parameters_pose['top']-self.parameters_pose['pad'] + i * self.parameters_pose['step'],
+                        self.parameters_pose['right']+self.parameters_pose['offset']+self.parameters_pose['length'],
+                        self.parameters_pose['top']+self.parameters_pose['pad'] + i * self.parameters_pose['step'])
+            if (i == self.current_parameter) and self.parameter_active:
                 if self.parameter_seleceted:
-                    draw.rounded_rectangle(box_pose, radius=self.pose['radius'], fill=(64, 64, 64), outline=(255, 255, 255), width=2)
-                    draw.text((self.pose['right']+2*self.pose['offset'], self.pose['top'] + i * self.pose['step']), "<>", font=self.FONTS["PixelOperatorBold_M"], fill=(255, 255, 255), anchor='lm')
+                    draw.rounded_rectangle(box_pose,
+                                           radius=self.parameters_pose['radius'],
+                                           fill=(64, 64, 64),
+                                           outline=(255, 255, 255),
+                                           width=2)
+                    draw.text((self.parameters_pose['right']+2*self.parameters_pose['offset'], self.parameters_pose['top'] + i * self.parameters_pose['step']),
+                              "<>",
+                              font=self.FONTS["PixelOperatorBold_M"],
+                              fill=(255, 255, 255),
+                              anchor='lm')
                 else:
-                    draw.rounded_rectangle(box_pose, radius=self.pose['radius'], fill=(0, 0, 0), outline=(255, 255, 255), width=2)
+                    draw.rounded_rectangle(box_pose,
+                                           radius=self.parameters_pose['radius'],
+                                           fill=(0, 0, 0),
+                                           outline=(255, 255, 255),
+                                           width=2)
             else:
-                draw.rounded_rectangle(box_pose, radius=self.pose['radius'], fill=(0, 0, 0), outline=(64, 64, 64), width=1)
+                draw.rounded_rectangle(box_pose,
+                                       radius=self.parameters_pose['radius'],
+                                       fill=(0, 0, 0),
+                                       outline=(64, 64, 64),
+                                       width=1)
             
-            param_pos = (box_pose[2]-self.pose['offset'], self.pose['top'] + i * self.pose['step'])
+            param_pos = (box_pose[2]-self.parameters_pose['offset'], self.parameters_pose['top'] + i * self.parameters_pose['step'])
             param_text = str(parameter["value"])
-            draw.text(param_pos, param_text, font=font, fill=(255, 255, 255), anchor='rm')
+            draw.text(param_pos,
+                      param_text,
+                      font=font,
+                      fill=(255, 255, 255),
+                      anchor='rm')
             
-            unit_pos = (box_pose[2]+self.pose['offset'], self.pose['top'] + i * self.pose['step'])
+            unit_pos = (box_pose[2]+self.parameters_pose['offset'], self.parameters_pose['top'] + i * self.parameters_pose['step'])
             unit_text = parameter["unit"]
-            draw.text(unit_pos, unit_text, font=font, fill=(255, 255, 255), anchor='lm')
+            draw.text(unit_pos,
+                      unit_text,
+                      font=font,
+                      fill=(255, 255, 255),
+                      anchor='lm')
         return None
 
 # TODO: Create a class Info() to handle general information display
@@ -499,19 +584,44 @@ class SequenceParameterPage(Parameter, Button):
             'select' : self.parameter_select,
             'back' : [callbacks["keys_callbacks"]['go_back'], self.parameter_select],
             'run' : [self.parameter_select, lambda:print("Run function not implemented yet!")],
-            **callbacks["keys_callbacks"],
+            'up' : self.option_up,
+            'down' : self.option_down,
+            **callbacks["keys_callbacks"], # TODO: key_callbacks didn't have button callbacks !!!
             }
         
         # Set callbacks for navigation
         self.page_callbacks = {**callbacks["page_callbacks"]}
         
         self.action = lambda: None
+        
+        self.options_list = [
+            *['parameter']*len(self.parameter_options),
+            *['button']*len(self.button_options)
+            ]
+        self.options_callbacks = {
+            'parameter' : {'up': self.keys_callbacks['parameter_up'], 'down': self.keys_callbacks['parameter_down']},
+            'button' : {'up': self.keys_callbacks['button_up'], 'down': self.keys_callbacks['button_down']}
+            }
+        self.current_option = 0
+        self.activate_options()
+        return None
+    
+    def activate_options(self):
+        logging.info("SequenceParameterPage.activate_options(): activate usefull options")
+        if self.options_list[self.current_option] == 'parameter':
+            self.parameter_active = True
+            self.button_active = False
+        elif self.options_list[self.current_option] == 'button':
+            self.parameter_active = False
+            self.button_active = True
+        else:
+            self.parameter_active = False
+            self.button_active = False
         return None
     
     def display(self):
         logging.info("SequenceParameterPage.display(): display SequenceParameterPage")
         super().display()
-        
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
@@ -530,13 +640,40 @@ class SequenceParameterPage(Parameter, Button):
             logging.info("SequenceParameterPage.select(): no action to trigger")
         return
     
-    def navigate(self, direction):
-        if direction == 'left':
-            self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
-        else:
-            super().navigate(direction)
-        logging.info(f"SequenceParameterPage.navigate({direction}): execute '{self.action.__name__}'")
+    def option_up(self):
+        logging.info("SequenceParameterPage.option_up(): move current option up")
+        if not self.parameter_seleceted:
+            self.current_option = (self.current_option-1)%len(self.options_list)
+        self.action = self.options_callbacks[self.options_list[self.current_option]]['up']
+        if type(self.action) == list:
+            self.action = self.action[self.parameter_seleceted]
+        self.activate_options()
         self.action()
+        return None
+    
+    def option_down(self):
+        logging.info("SequenceParameterPage.option_down(): move current option down")
+        if not self.parameter_seleceted:
+            self.current_option = (self.current_option+1)%len(self.options_list)
+        self.action = self.options_callbacks[self.options_list[self.current_option]]['down']
+        if type(self.action) == list:
+            self.action = self.action[self.parameter_seleceted]
+        self.activate_options()
+        self.action()
+        return None
+    
+    def navigate(self, direction):
+        logging.info("SequenceParameterPage.navigate(): navigate into sequence parameter page options")
+        if direction in self.keys.keys():
+            if direction == 'left':
+                self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
+            elif self.keys[direction] not in ['', 'none']:
+                if type(self.keys_callbacks[self.keys[direction]]) is list:
+                    self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
+                else:
+                    self.action = self.keys_callbacks[self.keys[direction]]
+            logging.info(f"SequenceParameterPage.navigate({direction}): execute '{self.action.__name__}'")
+            self.action()
         return None
 
 
@@ -599,7 +736,7 @@ class PageManager:
         return None
     
     def show_page(self, page_key=None):
-        logging.info("PageManager.show_page(): keep track of page history and display current page")
+        logging.info("PageManager.show_page(): keep track of page history")
         if self.current_page:
             self.page_stack.append(self.current_page)
         
@@ -608,7 +745,7 @@ class PageManager:
         return None
     
     def go_back(self):
-        logging.info("PageManager.go_back(): actualise page to previous page history and display current it")
+        logging.info("PageManager.go_back(): move to previous history page")
         if self.page_stack:
             self.current_page = self.page_stack.pop()
             self.current_page.display()
@@ -623,7 +760,7 @@ class PageManager:
 class MainApp:
     def __init__(self, UI_config_path):
         self.page_manager = PageManager(UI_config_path)
-        self.page_manager.show_page("main_menu_page")
+        self.page_manager.show_page("main_menu_page")#"sequence_parameter_page")#
         self.listener = keyboard.Listener(on_press=self.on_press)
         self.listener.start()
         self.QUIT = False

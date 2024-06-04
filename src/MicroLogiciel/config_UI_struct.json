@@ -90,7 +90,7 @@
       "buttons" : [
         {
           "name"     : "Run",
-          "action"   : "run_sequence",
+          "action"   : "shutdown_page",
           "position" : [280, 145]
         }
       ],
@@ -98,7 +98,7 @@
           {
               "name"  : "Shot",
               "unit"  : "",
-              "value" : 1000,
+              "value" : 10,
               "step"  : 5
           },
           {
