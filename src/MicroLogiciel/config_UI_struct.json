@@ -64,18 +64,25 @@
           "left"  : "button_up",
           "right" : "button_down"
       },
-      "buttons": [
-          {
-              "name"     : "No",
-              "action"   : "main_menu_page",
-              "position" : [256, 145]
+      "buttons": {
+          "parameters" : {
+              "pad_x"  : 15,
+              "pad_y"  : 10,
+              "radius" : 12
           },
-          {
-              "name"     : "Yes",
-              "action"   : "shutdown",
-              "position" : [64, 145]
-          }
-      ]
+          "options" : [
+              {
+                  "name"     : "No",
+                  "action"   : "main_menu_page",
+                  "position" : [256, 145]
+              },
+              {
+                  "name"     : "Yes",
+                  "action"   : "shutdown",
+                  "position" : [64, 145]
+              }
+          ]
+      }
   },
   "sequence_parameter_page" : {
       "title" : "Sequence parameter",
@@ -87,32 +94,51 @@
           "left"  : "back",
           "right" : "run"
       },
-      "buttons" : [
-        {
-          "name"     : "Run",
-          "action"   : "shutdown_page",
-          "position" : [280, 145]
-        }
-      ],
-      "parameters" : [
-          {
-              "name"  : "Shot",
-              "unit"  : "",
-              "value" : 10,
-              "step"  : 5
+      "buttons" : {
+          "parameters" : {
+              "pad_x"  : 10,
+              "pad_y"  : 10,
+              "radius" : 6
           },
-          {
-              "name"  : "Exposure",
-              "unit"  : "s",
-              "value" : 15,
-              "step"  : 5
+          "options" : [
+              {
+                  "name"     : "Run",
+                  "action"   : "shutdown_page",
+                  "position" : [280, 145]
+              }
+          ]
+      },
+      "parameters" : {
+          "parameters" : {
+              "font_size"  : "M",
+              "step"       : 32,
+              "pad_x"      : 14,
+              "pad_y"      : 14,
+              "offset"     : 8,
+              "radius"     : 12,
+              "box_length" : 100
           },
-          {
-              "name"  : "Interval",
-              "unit"  : "s",
-              "value" : 2.5,
-              "step"  : 0.5
-          }
-      ]
+          "options" :
+          [
+              {
+                  "name"  : "Shot",
+                  "unit"  : "",
+                  "value" : 10,
+                  "step"  : 5
+              },
+              {
+                  "name"  : "Exposure",
+                  "unit"  : "s",
+                  "value" : 15,
+                  "step"  : 5
+              },
+              {
+                  "name"  : "Interval",
+                  "unit"  : "s",
+                  "value" : 2.5,
+                  "step"  : 0.5
+              }
+          ]
+      }
   }
 }

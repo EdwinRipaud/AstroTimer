@@ -204,7 +204,10 @@ class Button(Page):
         super().__init__(config)
         self._config = config
         
-        self.button_options = self._config["buttons"]
+        self.button_config = self._config["buttons"]
+        self.button_parameters = self.button_config["parameters"]
+        self.button_options = self.button_config["options"]
+        
         self.current_button = 0
         self.button_active = True
         
@@ -219,8 +222,9 @@ class Button(Page):
             'right'  : [bbox[2] for bbox in bboxs],
             'top'    : [bbox[1] for bbox in bboxs],
             'bottom' : [bbox[3] for bbox in bboxs],
-            'pad'    : 10,
-            'radius' : 8,
+            'pad_x'  : self.button_parameters['pad_x'],
+            'pad_y'  : self.button_parameters['pad_y'],
+            'radius' : self.button_parameters['radius'],
             }
         
         # Set callbacks for navigation keys
@@ -274,19 +278,19 @@ class Button(Page):
             option_text = button["name"] if button["name"] != "" else "[empty name]"
             
             if (i == self.current_button) and (self.button_active):
-                draw.rounded_rectangle((self.button_pose['left'][i]-self.button_pose['pad'],
-                                        self.button_pose['top'][i]-self.button_pose['pad'],
-                                        self.button_pose['right'][i]+self.button_pose['pad'],
-                                        self.button_pose['bottom'][i]+self.button_pose['pad']),
+                draw.rounded_rectangle((self.button_pose['left'][i]-self.button_pose['pad_x'],
+                                        self.button_pose['top'][i]-self.button_pose['pad_y'],
+                                        self.button_pose['right'][i]+self.button_pose['pad_x'],
+                                        self.button_pose['bottom'][i]+self.button_pose['pad_y']),
                                        radius=self.button_pose['radius'],
                                        fill=(64, 64, 64),
                                        outline=(255, 255, 255),
                                        width=2)
             else:
-                draw.rounded_rectangle((self.button_pose['left'][i]-self.button_pose['pad'],
-                                        self.button_pose['top'][i]-self.button_pose['pad'],
-                                        self.button_pose['right'][i]+self.button_pose['pad'],
-                                        self.button_pose['bottom'][i]+self.button_pose['pad']),
+                draw.rounded_rectangle((self.button_pose['left'][i]-self.button_pose['pad_x'],
+                                        self.button_pose['top'][i]-self.button_pose['pad_y'],
+                                        self.button_pose['right'][i]+self.button_pose['pad_x'],
+                                        self.button_pose['bottom'][i]+self.button_pose['pad_y']),
                                        radius=self.button_pose['radius'],
                                        fill=(0, 0, 0),
                                        outline=(64, 64, 64),
@@ -306,7 +310,10 @@ class Parameter(Page):
         super().__init__(config)
         self._config = config
         
-        self.parameter_options = self._config["parameters"]
+        self.parameter_config = self._config["parameters"]
+        self.parameter_parameters = self.parameter_config["parameters"]
+        self.parameter_options = self.parameter_config["options"]
+        
         self.current_parameter = 0
         self.parameter_seleceted = 0
         self.parameter_active = True
@@ -315,14 +322,15 @@ class Parameter(Page):
         self.parameters_pose = {
             'left'   : 12,
             'top'    : 52,
-            'step'   : 36,
-            'pad'    : 14,
-            'offset' : 8,
-            'radius' : 8,
-            'length' : 90,
+            'step'   : self.parameter_parameters['step'],
+            'pad_x'  : self.parameter_parameters['pad_x'],
+            'pad_y'  : self.parameter_parameters['pad_y'],
+            'offset' : self.parameter_parameters['offset'],
+            'radius' : self.parameter_parameters['radius'],
+            'box_length' : self.parameter_parameters['box_length'],
             'right'  : max([
                 ImageDraw.Draw(self.LCD.screen_img).textbbox((12, 0), param['name'],
-                               font=self.FONTS["PixelOperatorBold_M"], anchor='lm')[2]
+                               font=self.FONTS[f"PixelOperatorBold_{self.parameter_parameters['font_size']}"], anchor='lm')[2]
                 for param in self.parameter_options]),
             }
         
@@ -395,7 +403,10 @@ class Parameter(Page):
         for i in range(len(self.parameter_options)):
             parameter = self.parameter_options[i]
             
-            font = self.FONTS["PixelOperator_M"] if i != self.current_parameter else self.FONTS["PixelOperatorBold_M"]
+            if i == self.current_parameter:
+                font = self.FONTS[f"PixelOperatorBold_{self.parameter_parameters['font_size']}"]
+            else:
+                font = self.FONTS[f"PixelOperator_{self.parameter_parameters['font_size']}"]
             
             name_pos = (self.parameters_pose['left'], self.parameters_pose['top'] + i * self.parameters_pose['step'])
             name_text = parameter["name"] if parameter["name"] != "" else "[empty name]"
@@ -406,9 +417,9 @@ class Parameter(Page):
                       anchor='lm')
             
             box_pose = (self.parameters_pose['right']+self.parameters_pose['offset'],
-                        self.parameters_pose['top']-self.parameters_pose['pad'] + i * self.parameters_pose['step'],
-                        self.parameters_pose['right']+self.parameters_pose['offset']+self.parameters_pose['length'],
-                        self.parameters_pose['top']+self.parameters_pose['pad'] + i * self.parameters_pose['step'])
+                        self.parameters_pose['top']-self.parameters_pose['pad_y'] + i * self.parameters_pose['step'],
+                        self.parameters_pose['right']+self.parameters_pose['offset']+self.parameters_pose['box_length'],
+                        self.parameters_pose['top']+self.parameters_pose['pad_y'] + i * self.parameters_pose['step'])
             if (i == self.current_parameter) and self.parameter_active:
                 if self.parameter_seleceted:
                     draw.rounded_rectangle(box_pose,
@@ -416,9 +427,10 @@ class Parameter(Page):
                                            fill=(64, 64, 64),
                                            outline=(255, 255, 255),
                                            width=2)
+                    # TODO: replace this text by a top-bottom chevron custom icon
                     draw.text((self.parameters_pose['right']+2*self.parameters_pose['offset'], self.parameters_pose['top'] + i * self.parameters_pose['step']),
                               "<>",
-                              font=self.FONTS["PixelOperatorBold_M"],
+                              font=self.FONTS[f"PixelOperatorBold_{self.parameter_parameters['font_size']}"],
                               fill=(255, 255, 255),
                               anchor='lm')
                 else:
