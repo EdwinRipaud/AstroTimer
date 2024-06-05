@@ -211,7 +211,6 @@ class Button(Page):
         self.current_button = 0
         self.button_active = True
         
-        # TODO: initilaize from JSON parameter
         bboxs = [ImageDraw.Draw(self.LCD.screen_img).textbbox(tuple(button['position']),
                                                               button["name"] if button["name"] != "" else "[empty name]",
                                                               font=self.FONTS["PixelOperatorBold_M"],
@@ -318,7 +317,6 @@ class Parameter(Page):
         self.parameter_seleceted = 0
         self.parameter_active = True
         
-        # TODO: initilaize from JSON parameter
         self.parameters_pose = {
             'left'   : 12,
             'top'    : 52,
@@ -529,6 +527,12 @@ class ComingSoonPage(Page):
         self.keys_callbacks = {**callbacks["keys_callbacks"]}
         return None
     
+    def navigate(self, direction):
+        super().navigate(direction)
+        logging.info(f"ComingSoonPage.navigate({direction}): execute '{self.action.__name__}'")
+        self.action()
+        return None
+    
     def display(self):
         logging.info("ComingSoonPage.display(): display ComingSoonPage")
         super().display()
@@ -544,12 +548,6 @@ class ComingSoonPage(Page):
         
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
-        return None
-    
-    def navigate(self, direction):
-        super().navigate(direction)
-        logging.info(f"ComingSoonPage.navigate({direction}): execute '{self.action.__name__}'")
-        self.action()
         return None
 
 
@@ -597,23 +595,6 @@ class ShutdownPage(Button):
         self.action = lambda: None
         return None
     
-    def display(self):
-        logging.info("ShutdownPage.display(): display ShutdownPage")
-        super().display()
-        draw = ImageDraw.Draw(self.LCD.screen_img)
-        
-        icon = Image.open(f"{self.PATH_ASSETS}{self._config['icon']}")
-        icon_pose = (int((self.LCD.size[1] - icon.size[0])/2), 40)
-        self.LCD.screen_img.paste(icon, icon_pose)
-        
-        text_font = self.FONTS["PixelOperator_L"]
-        text_pose = (int((self.LCD.size[1])/2), 105)
-        draw.text(text_pose, "Shutdown now ?", fill=(255,255,255), font=text_font, anchor='mm')
-        
-        self._draw_status_bar()
-        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
-        return None
-    
     def select(self):
         logging.info("ShutdownPage.select(): handle shutdown button selection")
         action = self.button_options[self.current_button]['action']
@@ -633,6 +614,23 @@ class ShutdownPage(Button):
         logging.info(f"ShutdownPage.navigate({direction}): execute '{self.action.__name__}'")
         self.action()
         return None
+    
+    def display(self):
+        logging.info("ShutdownPage.display(): display ShutdownPage")
+        super().display()
+        draw = ImageDraw.Draw(self.LCD.screen_img)
+        
+        icon = Image.open(f"{self.PATH_ASSETS}{self._config['icon']}")
+        icon_pose = (int((self.LCD.size[1] - icon.size[0])/2), 40)
+        self.LCD.screen_img.paste(icon, icon_pose)
+        
+        text_font = self.FONTS["PixelOperator_L"]
+        text_pose = (int((self.LCD.size[1])/2), 105)
+        draw.text(text_pose, "Shutdown now ?", fill=(255,255,255), font=text_font, anchor='mm')
+        
+        self._draw_status_bar()
+        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+        return None
 
 
 class SequenceParameterPage(Parameter, Button):
@@ -649,7 +647,7 @@ class SequenceParameterPage(Parameter, Button):
             'run' : [self.parameter_select, lambda:print("Run function not implemented yet!")],
             'up' : self.option_up,
             'down' : self.option_down,
-            **callbacks["keys_callbacks"], # TODO: key_callbacks didn't have button callbacks !!!
+            **callbacks["keys_callbacks"],
             }
         
         # Set callbacks for navigation
@@ -680,13 +678,6 @@ class SequenceParameterPage(Parameter, Button):
         else:
             self.parameter_active = False
             self.button_active = False
-        return None
-    
-    def display(self):
-        logging.info("SequenceParameterPage.display(): display SequenceParameterPage")
-        super().display()
-        self._draw_status_bar()
-        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
     
     def select(self):
@@ -737,6 +728,13 @@ class SequenceParameterPage(Parameter, Button):
                     self.action = self.keys_callbacks[self.keys[direction]]
             logging.info(f"SequenceParameterPage.navigate({direction}): execute '{self.action.__name__}'")
             self.action()
+        return None
+    
+    def display(self):
+        logging.info("SequenceParameterPage.display(): display SequenceParameterPage")
+        super().display()
+        self._draw_status_bar()
+        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
 
 
@@ -815,14 +813,14 @@ class SmartphonePage(Picture):
             file_values = subprocess.check_output(f"sudo cat {self.PATH_WEBSITE['path']}", shell=True).decode('utf-8')
             id_paragraphe = file_values.find('#static IP')
             paragraphe = file_values[id_paragraphe:]
-            self.WEBSITE_CONFIG = {'ip'   : paragraphe[paragraphe.find('=')+1:paragraphe.find('=')+11],
-                                   'port' : self.PATH_WEBSITE['port']}
+            WEBSITE_CONFIG = {'ip'   : paragraphe[paragraphe.find('=')+1:paragraphe.find('=')+11],
+                              'port' : self.PATH_WEBSITE['port']}
         else:
-            self.WEBSITE_CONFIG = {'ip'   :'255.255.255.255',
+            WEBSITE_CONFIG = {'ip'   :'255.255.255.255',
                                    'port' :'65535',
                                    }
         
-        self._generate_QRCode(f"HTTP:{self.WEBSITE_CONFIG['ip']}:{self.WEBSITE_CONFIG['port']}")
+        self._generate_QRCode(f"HTTP:{WEBSITE_CONFIG['ip']}:{WEBSITE_CONFIG['port']}")
         return None
     
     def display(self):
@@ -844,13 +842,11 @@ class SmartphonePage(Picture):
 # TODO: Create class BatteryPage() to handle battery information display
 
 
-
-# TODO: Modify the class assignation depending on JSON, unsing existing fields or adding a class filed
 class PageManager:
     def __init__(self, UI_config_path):
         logging.info("PageManager.__init__(): initialise PageManager")
         
-        self.quit = False
+        self.QUIT = False
         
         with open(UI_config_path, 'r') as f:
             self.pages_structure = json.load(f)
@@ -916,7 +912,7 @@ class PageManager:
     
     def shutdown(self):
         logging.info("PageManager.shutdown(): shutdown PageManager")
-        self.quit = True
+        self.QUIT = True
         return
 
 
@@ -926,7 +922,6 @@ class MainApp:
         self.page_manager.show_page("main_menu_page")#"smartphone_page")#
         self.listener = keyboard.Listener(on_press=self.on_press)
         self.listener.start()
-        self.QUIT = False
         return None
     
     def on_press(self, key):
@@ -945,7 +940,7 @@ class MainApp:
     
     def run(self):
         logging.info("MainApp(class):run(): Running the MainApp(class)")
-        while (not self.QUIT) and (not self.page_manager.quit):
+        while not self.page_manager.QUIT:
             continue
         
         return None
@@ -953,7 +948,6 @@ class MainApp:
     def clean_stop(self):
         logging.info("MainApp(class):clean_stop(): Cleanning MainApp(class)")
         self.page_manager.current_page.LCD.ClearScreen()
-        self.QUIT = True
         self.listener.stop()
         return None
 

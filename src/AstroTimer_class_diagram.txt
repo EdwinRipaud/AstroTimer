@@ -1,0 +1,187 @@
+---
+title: AstroTimer class diagram
+---
+classDiagram
+    class MainApp{
+        +PageManager page_manager
+        +on_press(key)
+        +run()
+        +clean_stop()
+    }
+    
+    class PageManager{
+        +bool QUIT
+        +dict pages
+        +int current_page
+        +list page_stack
+        +dict class_dict
+        +dict keys_callbacks
+        +dict page_callbacks
+        +dict callbacks
+        +load_pages()
+        +show_page(page_key)
+        +go_back()
+        +shutdown()
+    }
+    
+    class Page{
+        +string title
+        +dict keys
+        +dict page_callbacks
+        +dict general_config
+        +Image default_icon
+        +string PATHS
+        +ImageFont FONTS
+        +dict BATTERY_DICT
+        +LCD_1inch47 LCD
+        +float BATTERY_LEVEL
+        +string STATUS_TXT
+        
+        -_get_battery_icon()
+        -_draw_status_bar()
+        +display()
+        +navigate()
+    }
+    
+    namespace BasePagesElements {
+        class Menu{
+            -dict _config
+            +dict menu_options
+            +int current_menu
+            +dict keys_callbacks
+            +menu_up()
+            +menu_down()
+            +menu_select()
+            +display()
+        }
+        
+        class Button{
+            -dict _config
+            +dict button_config
+            +dict button_parameters
+            +dict button_options
+            +int current_button
+            +bool button_active
+            +dict button_pose
+            +dict keys_callbacks
+            +button_up()
+            +button_down()
+            +button_select()
+            +display()
+        }
+        
+        class Parameter{
+            -dict _config
+            +dict parameter_config
+            +dict parameter_parameters
+            +dict parameter_options
+            +int current_parameter
+            +int parameter_seleceted
+            +bool parameter_active
+            +dict parameters_pose
+            +dict keys_callbacks
+            +parameter_up()
+            +parameter_down()
+            +parameter_select()
+            +parameter_increment()
+            +parameter_decrement()
+            +navigate()
+            +display()
+        }
+        
+        class Picture{
+            -dict _config
+            +dict picture_options
+            +Image picture
+            +dict keys_callbacks
+            -_set_pose()
+            -_generate_QRCode(text)
+            +display()
+        }
+    }
+    
+    class ComingSoonPage{
+        -dict _config
+        +dict keys_callbacks
+        +navigate()
+        +display()
+    }
+    
+    class MainMenuPage{
+        -dict _config
+        +dict keys_callbacks
+        +dict page_callbacks
+        +func action
+        +select()
+        +navigate()
+        +display()
+    }
+    
+    class ShutdownPage{
+        -dict _config
+        +dict keys_callbacks
+        +dict page_callbacks
+        +func action
+        +select()
+        +navigate()
+        +display()
+    }
+    
+    class SequenceParameterPage{
+        -dict _config
+        +dict keys_callbacks
+        +dict page_callbacks
+        +func action
+        +list options_list
+        +dict options_callbacks
+        +int current_option
+        +activate_options()
+        +select()
+        +option_up()
+        +option_down()
+        +navigate()
+        +display()
+    }
+    
+    class WifiPage{
+        -dict _config
+        +dict keys_callbacks
+        +dict page_callbacks
+        +func action
+        +get_wifi_QRCode()
+        +navigate()
+        +display()
+    }
+    
+    class SmartphonePage{
+        -dict _config
+        +dict keys_callbacks
+        +dict page_callbacks
+        +func action
+        +get_website_QRCode()
+        +navigate()
+        +display()
+    }
+    
+    
+    Page <|-- Menu
+    Page <|-- Button
+    Page <|-- Parameter
+    Page <|-- Picture
+        
+    Page <|-- ComingSoonPage
+    Menu <|-- MainMenuPage
+    Button <|-- ShutdownPage
+    Parameter <|-- SequenceParameterPage
+    Button <|-- SequenceParameterPage
+    Picture <|-- WifiPage
+    Picture <|-- SmartphonePage
+    
+    ComingSoonPage o-- PageManager
+    MainMenuPage o-- PageManager
+    ShutdownPage o-- PageManager
+    SequenceParameterPage o-- PageManager
+    WifiPage o-- PageManager
+    SmartphonePage o-- PageManager
+    
+    PageManager *-- MainApp
