@@ -138,7 +138,7 @@ class Menu(Page):
                 'menu_down'   : self.menu_down,
                 'menu_select' : self.menu_select,
                 }
-        except AttributeError or NameError or KeyError:
+        except AttributeError:
             self.keys_callbacks = {
                 'menu_up'     : self.menu_up,
                 'menu_down'   : self.menu_down,
@@ -235,7 +235,7 @@ class Button(Page):
                 'button_down'   : self.button_down,
                 'button_select' : self.button_select,
                 }
-        except AttributeError or NameError or KeyError:
+        except AttributeError:
             self.keys_callbacks = {
                 'button_up'     : self.button_up,
                 'button_down'   : self.button_down,
@@ -341,7 +341,7 @@ class Parameter(Page):
                 'parameter_up'   : [self.parameter_up, self.parameter_increment],
                 'parameter_down' : [self.parameter_down, self.parameter_decrement],
                 }
-        except AttributeError or NameError or KeyError:
+        except AttributeError:
             self.keys_callbacks = {
                 'parameter_up'   : [self.parameter_up, self.parameter_increment],
                 'parameter_down' : [self.parameter_down, self.parameter_decrement],
@@ -463,9 +463,60 @@ class Parameter(Page):
                       anchor='lm')
         return None
 
-# TODO: Create a class Info() to handle general information display
 
-# TODO: Create a class Image() to handle image display
+class Picture(Page):
+    def __init__(self, config):
+        logging.info("Picture.__init__(): initialise Picture specific options")
+        super().__init__(config)
+        self._config = config
+        
+        self.picture_options = self._config["pictures"]
+        
+        if 'image' in self.picture_options.keys():
+            self.picture = Image.open(f"{self.PATH_ASSETS}{self.picture_options['image']}")
+        else:
+            self.picture = Image.open(f"{self.PATH_ASSETS}Icon_Empty.png")
+        
+        self._set_pose()
+        
+        # Set callbacks for navigation keys
+        try:
+            self.keys_callbacks = {
+                **self.keys_callbacks,
+                }
+        except AttributeError:
+            self.keys_callbacks = {}
+        return None
+    
+    def _set_pose(self):
+        logging.info("Picture._set_pose(): compute image position in screen")
+        if 'position' in self.picture_options.keys():
+            self.pose = self.picture_options['position']
+        else:
+            self.pose = (int((self.LCD.screen_img.width-self.picture.height)/2),
+                         int((self.LCD.screen_img.height-self.picture.height)/2))
+        return None
+    
+    def _generate_QRCode(self, text=""):
+        logging.info("Picture.get_QRCode(): generate QRCode")
+        if len(text)>50:
+            box_size = 4
+        else:
+            box_size = 5
+        qr = qrcode.QRCode(box_size=box_size, border=2)
+        qr.add_data(text)
+        self.picture = qr.make_image()
+        self._set_pose()
+        return None
+    
+    def display(self):
+        logging.info("Picture.display(): add picture to the display")
+        super().display()
+        
+        self.LCD.screen_img.paste(self.picture, self.pose)
+        return None
+
+# TODO: Create a class Info() to handle general information display
 
 
 class ComingSoonPage(Page):
@@ -689,13 +740,109 @@ class SequenceParameterPage(Parameter, Button):
         return None
 
 
+class WifiPage(Picture):
+    def __init__(self, config, callbacks):
+        logging.info("WifiPage.__init__(): initialise WifiPage")
+        super().__init__(config)
+        self._config = config
+        
+        # Set callbacks for navigation keys
+        self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
+        
+        # Set callbacks for navigation
+        self.page_callbacks = {**callbacks["page_callbacks"]}
+        
+        self.action = lambda: None
+        return None
+    
+    def get_wifi_QRCode(self):
+        logging.info("WifiPage.get_wifi_QRCode(): generate wifi connection QRCode")
+        if os.path.exists(self.PATH_WIFI):
+            file_values = subprocess.check_output(f"sudo cat {self.PATH_WIFI}", shell=True).decode('utf-8')
+            WIFI_CONFIG = {line.split('=')[0]:line.split('=')[1] for line in file_values.split('\n')[:-1]}
+            
+            if 'ignore_broadcast_ssid' not in WIFI_CONFIG.keys():
+                WIFI_CONFIG['ignore_broadcast_ssid'] = 'false'
+            else:
+                if WIFI_CONFIG['ignore_broadcast_ssid']:
+                    WIFI_CONFIG['ignore_broadcast_ssid'] = 'true'
+                else:
+                    WIFI_CONFIG['ignore_broadcast_ssid'] = 'false'
+        else:
+            WIFI_CONFIG = {'ssid'                 :'WifiHelloWorld',
+                           'wpa_passphrase'       :'HelloWorld!',
+                          'ignore_broadcast_ssid' :'true',
+                           'wpa'                  :'WPA2',
+                          }
+        self._generate_QRCode("WIFI:T:{};S:{};P:{};H:{};;".format(WIFI_CONFIG['wpa'],
+                                                                  WIFI_CONFIG['ssid'],
+                                                                  WIFI_CONFIG['wpa_passphrase'],
+                                                                  WIFI_CONFIG['ignore_broadcast_ssid']))
+        return None
+    
+    def display(self):
+        logging.info("WifiPage.display(): display WifiPage")
+        self.get_wifi_QRCode()
+        super().display()
+        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+        return None
+    
+    def navigate(self, direction):
+        super().navigate(direction)
+        logging.info(f"WifiPage.navigate({direction}): execute '{self.action.__name__}'")
+        self.action()
+        return None
+
+
+class SmartphonePage(Picture):
+    def __init__(self, config, callbacks):
+        logging.info("SmartphonePage.__init__(): initialise SmartphonePage")
+        super().__init__(config)
+        self._config = config
+        
+        # Set callbacks for navigation keys
+        self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
+        
+        # Set callbacks for navigation
+        self.page_callbacks = {**callbacks["page_callbacks"]}
+        
+        self.action = lambda: None
+        return None
+    
+    def get_website_QRCode(self):
+        logging.info("SmartphonePage.get_website_QRCode(): generate website connection QRCode")
+        if os.path.exists(self.PATH_WEBSITE['path']):
+            file_values = subprocess.check_output(f"sudo cat {self.PATH_WEBSITE['path']}", shell=True).decode('utf-8')
+            id_paragraphe = file_values.find('#static IP')
+            paragraphe = file_values[id_paragraphe:]
+            self.WEBSITE_CONFIG = {'ip'   : paragraphe[paragraphe.find('=')+1:paragraphe.find('=')+11],
+                                   'port' : self.PATH_WEBSITE['port']}
+        else:
+            self.WEBSITE_CONFIG = {'ip'   :'255.255.255.255',
+                                   'port' :'65535',
+                                   }
+        
+        self._generate_QRCode(f"HTTP:{self.WEBSITE_CONFIG['ip']}:{self.WEBSITE_CONFIG['port']}")
+        return None
+    
+    def display(self):
+        logging.info("SmartphonePage.display(): display SmartphonePage")
+        self.get_website_QRCode()
+        super().display()
+        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+        return None
+    
+    def navigate(self, direction):
+        super().navigate(direction)
+        logging.info(f"SmartphonePage.navigate({direction}): execute '{self.action.__name__}'")
+        self.action()
+        return None
+
+
 # TODO: Create class SettingPage() to handle setting modification page
 
 # TODO: Create class BatteryPage() to handle battery information display
 
-# TODO: Create class WifiPage() to handle wify connection
-
-# TODO: Create class SmartphonePage() to handle web site conection
 
 
 # TODO: Modify the class assignation depending on JSON, unsing existing fields or adding a class filed
@@ -718,6 +865,8 @@ class PageManager:
             "ComingSoonPage": ComingSoonPage,
             "ShutdownPage": ShutdownPage,
             "SequenceParameterPage": SequenceParameterPage,
+            "WifiPage": WifiPage,
+            "SmartphonePage": SmartphonePage,
             }
         
         # Define interface level callback function
@@ -729,6 +878,8 @@ class PageManager:
         self.page_callbacks = {
             "main_menu_page": self.show_page,
             "sequence_parameter_page": self.show_page,
+            "wifi_page": self.show_page,
+            "smartphone_page": self.show_page,
             "shutdown_page": self.show_page,
             "coming_soon_page": self.show_page,
             }
@@ -772,7 +923,7 @@ class PageManager:
 class MainApp:
     def __init__(self, UI_config_path):
         self.page_manager = PageManager(UI_config_path)
-        self.page_manager.show_page("main_menu_page")#"sequence_parameter_page")#
+        self.page_manager.show_page("main_menu_page")#"smartphone_page")#
         self.listener = keyboard.Listener(on_press=self.on_press)
         self.listener.start()
         self.QUIT = False

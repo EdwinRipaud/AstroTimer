@@ -1,7 +1,12 @@
 {
     "paths": {
-        "PATH_ASSETS" : "assets/",
-        "PATH_FONTS"  : "fonts/"
+        "PATH_ASSETS"  : "assets/",
+        "PATH_FONTS"   : "fonts/",
+        "PATH_WIFI"    : "/etc/hostapd/hostapd.conf",
+        "PATH_WEBSITE" : {
+            "path" : "/etc/dhcpcd-static.conf",
+            "port" : 55000
+        }
     },
     "display": {
         "spi_bus"   : 0,

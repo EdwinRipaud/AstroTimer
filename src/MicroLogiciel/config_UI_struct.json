@@ -1,5 +1,5 @@
 {
-  "main_menu_page" : {
+    "main_menu_page" : {
     "title" : "Main Menu",
     "class" : "MainMenuPage",
     "keys" : {
@@ -32,17 +32,17 @@
       },
       {
         "name"  : "Wifi config",
-        "action" : "coming_soon_page",
+        "action" : "wifi_page",
         "icon"   : "Icon_Wifi_config.png"
       },
       {
         "name"  : "Smartphone",
-        "action" : "coming_soon_page",
+        "action" : "smartphone_page",
         "icon"   : "Icon_Smartphone.png"
       }
     ]
-  },
-  "coming_soon_page" : {
+    },
+    "coming_soon_page" : {
       "title" : "Coming soon",
       "class" : "ComingSoonPage",
       "keys" : {
@@ -52,8 +52,8 @@
           "left"  : "go_back",
           "right" : ""
       }
-  },
-  "shutdown_page" : {
+    },
+    "shutdown_page" : {
       "title" : "Shutdown",
       "class" : "ShutdownPage",
       "icon"   : "Icon_Shutdown.png",
@@ -83,8 +83,8 @@
               }
           ]
       }
-  },
-  "sequence_parameter_page" : {
+    },
+    "sequence_parameter_page" : {
       "title" : "Sequence parameter",
       "class" : "SequenceParameterPage",
       "keys" : {
@@ -140,5 +140,31 @@
               }
           ]
       }
-  }
+    },
+    "wifi_page" : {
+        "title" : "Wifi",
+        "class" : "WifiPage",
+        "keys" : {
+            "enter" : "go_back",
+            "up"    : "",
+            "down"  : "",
+            "left"  : "go_back",
+            "right" : ""
+        },
+        "pictures" : {
+        }
+    },
+    "smartphone_page" : {
+        "title" : "Smartphone",
+        "class" : "SmartphonePage",
+        "keys" : {
+            "enter" : "go_back",
+            "up"    : "",
+            "down"  : "",
+            "left"  : "go_back",
+            "right" : ""
+        },
+        "pictures" : {
+        }
+    }
 }
