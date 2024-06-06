@@ -1,145 +1,158 @@
 {
     "main_menu_page" : {
-    "title" : "Main Menu",
-    "class" : "MainMenuPage",
-    "keys" : {
-        "enter" : "menu_select",
-        "up"    : "menu_up",
-        "down"  : "menu_down",
-        "left"  : "go_back",
-        "right" : "menu_select"
-    },
-    "menus" : [
-      {
-        "name"  : "Sequence",
-        "action" : "sequence_parameter_page",
-        "icon"   : "Icon_Sequence.png"
-      },
-      {
-        "name"  : "Battery",
-        "action" : "coming_soon_page",
-        "icon"   : "Icon_Battery.png"
-      },
-      {
-        "name"  : "Parameters",
-        "action" : "coming_soon_page",
-        "icon"   : "Icon_Parameters.png"
-      },
-      {
-        "name"  : "Shutdown",
-        "action" : "shutdown_page",
-        "icon"   : "Icon_Shutdown.png"
-      },
-      {
-        "name"  : "Wifi config",
-        "action" : "wifi_page",
-        "icon"   : "Icon_Wifi_config.png"
-      },
-      {
-        "name"  : "Smartphone",
-        "action" : "smartphone_page",
-        "icon"   : "Icon_Smartphone.png"
-      }
-    ]
+        "title" : "Main Menu",
+        "class" : "MainMenuPage",
+        "keys" : {
+            "enter" : "menu_select",
+            "up"    : "menu_up",
+            "down"  : "menu_down",
+            "left"  : "go_back",
+            "right" : "menu_select"
+        },
+        "menus" : [
+            {
+                "name"  : "Sequence",
+                "action" : "sequence_parameter_page",
+                "icon"   : "Icon_Sequence.png"
+            },
+            {
+                "name"  : "Battery",
+                "action" : "coming_soon_page",
+                "icon"   : "Icon_Battery.png"
+            },
+            {
+                "name"  : "Settings",
+                "action" : "setting_page",
+                "icon"   : "Icon_Setting.png"
+            },
+            {
+                "name"  : "Shutdown",
+                "action" : "shutdown_page",
+                "icon"   : "Icon_Shutdown.png"
+            },
+            {
+                "name"  : "Wifi config",
+                "action" : "wifi_page",
+                "icon"   : "Icon_Wifi_config.png"
+            },
+            {
+                "name"  : "Smartphone",
+                "action" : "smartphone_page",
+                "icon"   : "Icon_Smartphone.png"
+            }
+        ]
     },
     "coming_soon_page" : {
-      "title" : "Coming soon",
-      "class" : "ComingSoonPage",
-      "keys" : {
-          "enter" : "go_back",
-          "up"    : "",
-          "down"  : "",
-          "left"  : "go_back",
-          "right" : ""
-      }
+        "title" : "Coming soon",
+        "class" : "ComingSoonPage",
+        "keys" : {
+            "enter" : "go_back",
+            "up"    : "",
+            "down"  : "",
+            "left"  : "go_back",
+            "right" : ""
+        }
     },
     "shutdown_page" : {
-      "title" : "Shutdown",
-      "class" : "ShutdownPage",
-      "icon"   : "Icon_Shutdown.png",
-      "keys" : {
-          "enter" : "select",
-          "up"    : "",
-          "down"  : "",
-          "left"  : "button_up",
-          "right" : "button_down"
-      },
-      "buttons": {
-          "parameters" : {
-              "pad_x"  : 15,
-              "pad_y"  : 10,
-              "radius" : 12
-          },
-          "options" : [
-              {
-                  "name"     : "No",
-                  "action"   : "main_menu_page",
-                  "position" : [256, 145]
-              },
-              {
-                  "name"     : "Yes",
-                  "action"   : "shutdown",
-                  "position" : [64, 145]
-              }
-          ]
-      }
+        "title" : "Shutdown",
+        "class" : "ShutdownPage",
+        "icon"   : "Icon_Shutdown.png",
+        "keys" : {
+            "enter" : "select",
+            "up"    : "",
+            "down"  : "",
+            "left"  : "button_up",
+            "right" : "button_down"
+        },
+        "buttons": {
+            "options" : [
+                {
+                    "name"     : "No",
+                    "action"   : "main_menu_page",
+                    "position" : [256, 145]
+                },
+                {
+                    "name"     : "Yes",
+                    "action"   : "shutdown",
+                    "position" : [64, 145]
+                }
+            ]
+        }
     },
     "sequence_parameter_page" : {
-      "title" : "Sequence parameter",
-      "class" : "SequenceParameterPage",
-      "keys" : {
-          "enter" : "select",
-          "up"    : "up",
-          "down"  : "down",
-          "left"  : "back",
-          "right" : "run"
-      },
-      "buttons" : {
-          "parameters" : {
-              "pad_x"  : 10,
-              "pad_y"  : 10,
-              "radius" : 6
-          },
-          "options" : [
-              {
-                  "name"     : "Run",
-                  "action"   : "shutdown_page",
-                  "position" : [280, 145]
-              }
-          ]
-      },
-      "parameters" : {
-          "parameters" : {
-              "font_size"  : "M",
-              "step"       : 32,
-              "pad_x"      : 14,
-              "pad_y"      : 14,
-              "offset"     : 8,
-              "radius"     : 12,
-              "box_length" : 100
-          },
-          "options" :
-          [
-              {
-                  "name"  : "Shot",
-                  "unit"  : "",
-                  "value" : 10,
-                  "step"  : 5
-              },
-              {
-                  "name"  : "Exposure",
-                  "unit"  : "s",
-                  "value" : 15,
-                  "step"  : 5
-              },
-              {
-                  "name"  : "Interval",
-                  "unit"  : "s",
-                  "value" : 2.5,
-                  "step"  : 0.5
-              }
-          ]
-      }
+        "title" : "Sequence parameter",
+        "class" : "SequenceParameterPage",
+        "keys" : {
+            "enter" : "select",
+            "up"    : "up",
+            "down"  : "down",
+            "left"  : "back",
+            "right" : "run"
+        },
+        "buttons" : {
+            "options" : [
+                {
+                    "name"     : "Run",
+                    "action"   : "shutdown_page",
+                    "position" : [280, 145]
+                }
+            ]
+        },
+        "parameters" : {
+            "options" : [
+                {
+                    "name"  : "Shot",
+                    "unit"  : "",
+                    "value" : 10,
+                    "step"  : 5
+                },
+                {
+                    "name"  : "Exposure",
+                    "unit"  : "s",
+                    "value" : 15,
+                    "step"  : 5
+                },
+                {
+                    "name"  : "Interval",
+                    "unit"  : "s",
+                    "value" : 2.5,
+                    "step"  : 0.5
+                }
+            ]
+        }
+    },
+    "setting_page" : {
+        "title" : "Setting",
+        "class" : "SettingPage",
+        "keys" : {
+            "enter" : "menu_select",
+            "up"    : "menu_up",
+            "down"  : "menu_down",
+            "left"  : "go_back",
+            "right" : "menu_select"
+        },
+        "menus" : [
+            {
+                "name"  : "General",
+                "action" : "coming_soon_page",
+                "icon"   : ""
+            },
+            {
+                "name"  : "Battery",
+                "action" : "coming_soon_page",
+                "icon"   : ""
+            },
+            {
+                "name"  : "Wifi",
+                "action" : "coming_soon_page",
+                "icon"   : ""
+            },
+            {
+                "name"  : "Update",
+                "action" : "coming_soon_page",
+                "icon"   : ""
+            }
+        ]
     },
     "wifi_page" : {
         "title" : "Wifi",

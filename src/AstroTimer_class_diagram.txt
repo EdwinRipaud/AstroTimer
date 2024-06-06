@@ -143,6 +143,16 @@ classDiagram
         +display()
     }
     
+    class SettingPage{
+        -dict _config
+        +dict keys_callbacks
+        +dict page_callbacks
+        +func action
+        +select()
+        +navigate()
+        +display()
+    }
+    
     class WifiPage{
         -dict _config
         +dict keys_callbacks
@@ -174,6 +184,7 @@ classDiagram
     Button <|-- ShutdownPage
     Parameter <|-- SequenceParameterPage
     Button <|-- SequenceParameterPage
+    Menu <|-- SettingPage
     Picture <|-- WifiPage
     Picture <|-- SmartphonePage
     
@@ -181,6 +192,7 @@ classDiagram
     MainMenuPage o-- PageManager
     ShutdownPage o-- PageManager
     SequenceParameterPage o-- PageManager
+    SettingPage o-- PageManager
     WifiPage o-- PageManager
     SmartphonePage o-- PageManager
     

@@ -130,6 +130,22 @@ class Menu(Page):
         self.menu_options = self._config["menus"]
         self.current_menu = 0
         
+        # TODO: Modify parameter to dissociate text_pose from select_pose
+        self.menu_parameters = {
+            "top"        : 45,
+            "height"     : 48,
+            "left"       : 12,
+            "right"      : 300,
+            "pad_x"      : 8,
+            "pad_y"      : 12,
+            "radius"     : 12,
+            "step"       : 60,
+            "max_line"   : 3,
+            "font_size"  : "L",
+            "icon"       : 1,
+            "icon_space" : 12
+        }
+        
         # Set callbacks for navigation keys
         try:
             self.keys_callbacks = {
@@ -171,21 +187,35 @@ class Menu(Page):
     def display(self):
         logging.info("Menu.display(): add menu elements to the display")
         super().display()
-        draw = ImageDraw.Draw(self.LCD.screen_img)
+        draw = ImageDraw.Draw(self.LCD.screen_img, 'RGBA')
+        if self.menu_parameters['max_line'] > 0:
+            max_line = self.menu_parameters['max_line']
+        else:
+            max_line = len(self.menu_options)
+        
         # Add menus with icons
-        for i in range(min(3, len(self.menu_options))):
+        for i in range(min(max_line, len(self.menu_options))):
             idx = (i-1+self.current_menu)%len(self.menu_options)
             menu = self.menu_options[idx]
-            icon_path = menu.get("icon", f"{self.PATH_ASSETS}Icon_Empty.png")
-            try:
-                icon = Image.open(f"{self.PATH_ASSETS}{icon_path}")
-            except:
-                icon = self.default_icon
             
-            self.LCD.screen_img.paste(icon, (4, 20 + i * 60))
+            if self.menu_parameters['icon']:
+                icon_path = menu.get("icon", f"{self.PATH_ASSETS}Icon_Empty.png")
+                try:
+                    icon = Image.open(f"{self.PATH_ASSETS}{icon_path}")
+                except:
+                    icon = self.default_icon
+                
+                self.LCD.screen_img.paste(icon, (self.menu_parameters['left'], self.menu_parameters['top']-int(icon.height/2) + i * self.menu_parameters['step']))
+                option_pos = (self.menu_parameters['left'] + self.menu_parameters['icon_space'] + icon.width,
+                              self.menu_parameters['top'] + i * self.menu_parameters['step'])
+            else:
+                option_pos = (self.menu_parameters['left'],
+                              self.menu_parameters['top'] + i * self.menu_parameters['step'])
             
-            option_font = self.FONTS["PixelOperator_L"] if i != 1 else self.FONTS["PixelOperatorBold_L"]
-            option_pos = (64, 42 + i * 60)
+            if i == 1:
+                option_font = self.FONTS[f"PixelOperatorBold_{self.menu_parameters['font_size']}"]
+            else:
+                option_font = self.FONTS[f"PixelOperator_{self.menu_parameters['font_size']}"]
             option_text = menu["name"] if menu["name"] != "" else "[empty name]"
             draw.text(option_pos,
                       option_text,
@@ -193,8 +223,17 @@ class Menu(Page):
                       fill=(255, 255, 255),
                       anchor='lm')
         
-        asset_selection = Image.open("assets/Selection.png")
-        self.LCD.screen_img.paste(asset_selection, (1, 76), asset_selection.convert("RGBA"))
+        img = Image.new(mode="RGBA", size=self.LCD.size[::-1], color=(0))
+        draw = ImageDraw.Draw(img, 'RGBA')
+        draw.rounded_rectangle((max(0, self.menu_parameters['left']-self.menu_parameters['pad_x']),
+                                self.menu_parameters['top']+self.menu_parameters['step'],
+                                self.menu_parameters['right'],
+                                self.menu_parameters['top']+self.menu_parameters['step']+self.menu_parameters['height']),
+                               radius=self.menu_parameters['radius'],
+                               fill=(0, 0, 0, 0),
+                               outline=(255, 255, 255, 255),
+                               width=2)
+        self.LCD.screen_img = Image.alpha_composite(self.LCD.screen_img, img)
         return None
 
 
@@ -205,8 +244,12 @@ class Button(Page):
         self._config = config
         
         self.button_config = self._config["buttons"]
-        self.button_parameters = self.button_config["parameters"]
         self.button_options = self.button_config["options"]
+        self.button_parameters = {
+            "pad_x"  : 15,
+            "pad_y"  : 10,
+            "radius" : 12
+            }
         
         self.current_button = 0
         self.button_active = True
@@ -310,7 +353,6 @@ class Parameter(Page):
         self._config = config
         
         self.parameter_config = self._config["parameters"]
-        self.parameter_parameters = self.parameter_config["parameters"]
         self.parameter_options = self.parameter_config["options"]
         
         self.current_parameter = 0
@@ -318,17 +360,18 @@ class Parameter(Page):
         self.parameter_active = True
         
         self.parameters_pose = {
-            'left'   : 12,
-            'top'    : 52,
-            'step'   : self.parameter_parameters['step'],
-            'pad_x'  : self.parameter_parameters['pad_x'],
-            'pad_y'  : self.parameter_parameters['pad_y'],
-            'offset' : self.parameter_parameters['offset'],
-            'radius' : self.parameter_parameters['radius'],
-            'box_length' : self.parameter_parameters['box_length'],
+            "left"       : 12,
+            "top"        : 52,
+            "font_size"  : "M",
+            "step"       : 32,
+            "pad_x"      : 14,
+            "pad_y"      : 14,
+            "offset"     : 8,
+            "radius"     : 12,
+            "box_length" : 100,
             'right'  : max([
                 ImageDraw.Draw(self.LCD.screen_img).textbbox((12, 0), param['name'],
-                               font=self.FONTS[f"PixelOperatorBold_{self.parameter_parameters['font_size']}"], anchor='lm')[2]
+                               font=self.FONTS["PixelOperatorBold_M"], anchor='lm')[2]
                 for param in self.parameter_options]),
             }
         
@@ -402,9 +445,9 @@ class Parameter(Page):
             parameter = self.parameter_options[i]
             
             if i == self.current_parameter:
-                font = self.FONTS[f"PixelOperatorBold_{self.parameter_parameters['font_size']}"]
+                font = self.FONTS["PixelOperatorBold_M"]
             else:
-                font = self.FONTS[f"PixelOperator_{self.parameter_parameters['font_size']}"]
+                font = self.FONTS["PixelOperator_M"]
             
             name_pos = (self.parameters_pose['left'], self.parameters_pose['top'] + i * self.parameters_pose['step'])
             name_text = parameter["name"] if parameter["name"] != "" else "[empty name]"
@@ -428,7 +471,7 @@ class Parameter(Page):
                     # TODO: replace this text by a top-bottom chevron custom icon
                     draw.text((self.parameters_pose['right']+2*self.parameters_pose['offset'], self.parameters_pose['top'] + i * self.parameters_pose['step']),
                               "<>",
-                              font=self.FONTS[f"PixelOperatorBold_{self.parameter_parameters['font_size']}"],
+                              font=self.FONTS["PixelOperatorBold_M"],
                               fill=(255, 255, 255),
                               anchor='lm')
                 else:
@@ -557,6 +600,20 @@ class MainMenuPage(Menu):
         super().__init__(config)
         self._config = config
         
+        self.menu_parameters = {**self.menu_parameters,
+            "top"       : 42,
+            "left"      : 4,
+            "pad_x"     : 8,
+            "pad_y"     : 12,
+            "length"    : 290,
+            "radius"    : 8,
+            "step"      : 60,
+            "max_line"  : 3,
+            "font_size" : "L",
+            "icon"      : 1,
+            "icon_space": 12
+            }
+        
         # Set callbacks for navigation keys
         self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
         
@@ -585,6 +642,12 @@ class ShutdownPage(Button):
         logging.info("ShutdownPage.__init__(): initialise ShutdownPage")
         super().__init__(config)
         self._config = config
+        
+        self.button_parameters = {
+            "pad_x"  : 15,
+            "pad_y"  : 10,
+            "radius" : 12
+            }
         
         # Set callbacks for navigation keys
         self.keys_callbacks = {**self.keys_callbacks, 'select': self.select, **callbacks["keys_callbacks"]}
@@ -638,6 +701,28 @@ class SequenceParameterPage(Parameter, Button):
         logging.info("SequenceParameterPage.__init__(): initialise SequenceParameterPage")
         super().__init__(config)
         self._config = config
+        
+        self.parameters_pose = {**self.parameters_pose,
+            "left"       : 12,
+            "top"        : 52,
+            "font_size"  : "M",
+            "step"       : 32,
+            "pad_x"      : 14,
+            "pad_y"      : 14,
+            "offset"     : 8,
+            "radius"     : 12,
+            "box_length" : 100,
+            'right'  : max([
+                ImageDraw.Draw(self.LCD.screen_img).textbbox((12, 0), param['name'],
+                               font=self.FONTS["PixelOperatorBold_M"], anchor='lm')[2]
+                for param in self.parameter_options]),
+            }
+            
+        self.button_parameters = {
+            "pad_x"  : 10,
+            "pad_y"  : 10,
+            "radius" : 6
+            }
         
         # Set callbacks for navigation keys
         self.keys_callbacks = {
@@ -769,7 +854,7 @@ class WifiPage(Picture):
         else:
             WIFI_CONFIG = {'ssid'                 :'WifiHelloWorld',
                            'wpa_passphrase'       :'HelloWorld!',
-                          'ignore_broadcast_ssid' :'true',
+                           'ignore_broadcast_ssid' :'true',
                            'wpa'                  :'WPA2',
                           }
         self._generate_QRCode("WIFI:T:{};S:{};P:{};H:{};;".format(WIFI_CONFIG['wpa'],
@@ -837,7 +922,52 @@ class SmartphonePage(Picture):
         return None
 
 
-# TODO: Create class SettingPage() to handle setting modification page
+# TODO: Make a setting to switch RPi between access point to wifi mode
+# TODO: Make a setting to enable user to connect a spacific website to add wifi
+#       router ssid and passphrase for internet access on wifi mode
+# TODO: Make a setting to check updates, only on wifi mode
+class SettingPage(Menu):
+    def __init__(self, config, callbacks):
+        logging.info("SettingPage.__init__(): initialise MainMenuPage")
+        super().__init__(config)
+        self._config = config
+        
+        self.menu_parameters = {
+            "top"        : 50,
+            "left"       : 12,
+            "pad_x"      : 8,
+            "pad_y"      : 12,
+            "length"     : 290,
+            "radius"     : 8,
+            "step"       : 40,
+            "max_line"   : -1,
+            "font_size"  : "M",
+            "icon"       : 0,
+            "icon_space" : 12
+            }
+        
+        # Set callbacks for navigation keys
+        self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
+        
+        # Set callbacks for navigation
+        self.page_callbacks = {**self.page_callbacks, **callbacks["page_callbacks"]}
+        
+        self.action = lambda: None
+        return None
+    
+    def display(self):
+        logging.info("SettingPage.display(): display MainMenuPage")
+        super().display()
+        self._draw_status_bar()
+        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+        return None
+    
+    def navigate(self, direction):
+        super().navigate(direction)
+        logging.info(f"SettingPage.navigate({direction}): execute '{self.action.__name__}'")
+        self.action()
+        return None
+    
 
 # TODO: Create class BatteryPage() to handle battery information display
 
@@ -861,6 +991,7 @@ class PageManager:
             "ComingSoonPage": ComingSoonPage,
             "ShutdownPage": ShutdownPage,
             "SequenceParameterPage": SequenceParameterPage,
+            "SettingPage" : SettingPage,
             "WifiPage": WifiPage,
             "SmartphonePage": SmartphonePage,
             }
@@ -874,6 +1005,7 @@ class PageManager:
         self.page_callbacks = {
             "main_menu_page": self.show_page,
             "sequence_parameter_page": self.show_page,
+            "setting_page" : self.show_page,
             "wifi_page": self.show_page,
             "smartphone_page": self.show_page,
             "shutdown_page": self.show_page,
@@ -919,7 +1051,7 @@ class PageManager:
 class MainApp:
     def __init__(self, UI_config_path):
         self.page_manager = PageManager(UI_config_path)
-        self.page_manager.show_page("main_menu_page")#"smartphone_page")#
+        self.page_manager.show_page("main_menu_page")#"sequence_parameter_page")#
         self.listener = keyboard.Listener(on_press=self.on_press)
         self.listener.start()
         return None
