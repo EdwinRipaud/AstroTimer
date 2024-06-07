@@ -130,21 +130,7 @@ class Menu(Page):
         self.menu_options = self._config["menus"]
         self.current_menu = 0
         
-        # TODO: Modify parameter to dissociate text_pose from select_pose
-        self.menu_parameters = {
-            "top"        : 45,
-            "height"     : 48,
-            "left"       : 12,
-            "right"      : 300,
-            "pad_x"      : 8,
-            "pad_y"      : 12,
-            "radius"     : 12,
-            "step"       : 60,
-            "max_line"   : 3,
-            "font_size"  : "L",
-            "icon"       : 1,
-            "icon_space" : 12
-        }
+        self.menu_parameters = {}
         
         # Set callbacks for navigation keys
         try:
@@ -194,7 +180,7 @@ class Menu(Page):
             max_line = len(self.menu_options)
         
         # Add menus with icons
-        for i in range(min(max_line, len(self.menu_options))):
+        for i in range(max_line):
             idx = (i-1+self.current_menu)%len(self.menu_options)
             menu = self.menu_options[idx]
             
@@ -204,19 +190,17 @@ class Menu(Page):
                     icon = Image.open(f"{self.PATH_ASSETS}{icon_path}")
                 except:
                     icon = self.default_icon
-                
-                self.LCD.screen_img.paste(icon, (self.menu_parameters['left'], self.menu_parameters['top']-int(icon.height/2) + i * self.menu_parameters['step']))
-                option_pos = (self.menu_parameters['left'] + self.menu_parameters['icon_space'] + icon.width,
-                              self.menu_parameters['top'] + i * self.menu_parameters['step'])
-            else:
-                option_pos = (self.menu_parameters['left'],
-                              self.menu_parameters['top'] + i * self.menu_parameters['step'])
+                icon_pose = (self.menu_parameters['icon_left'],
+                             self.menu_parameters['top_offset'] + self.menu_parameters['icon_middle'] - int(icon.height/2) + i*self.menu_parameters['step'])
+                self.LCD.screen_img.paste(icon, icon_pose)
             
             if i == 1:
                 option_font = self.FONTS[f"PixelOperatorBold_{self.menu_parameters['font_size']}"]
             else:
                 option_font = self.FONTS[f"PixelOperator_{self.menu_parameters['font_size']}"]
             option_text = menu["name"] if menu["name"] != "" else "[empty name]"
+            option_pos = (self.menu_parameters['text_left'],
+                          self.menu_parameters['top_offset'] + self.menu_parameters['text_middle'] + i * self.menu_parameters['step'])
             draw.text(option_pos,
                       option_text,
                       font=option_font,
@@ -225,14 +209,15 @@ class Menu(Page):
         
         img = Image.new(mode="RGBA", size=self.LCD.size[::-1], color=(0))
         draw = ImageDraw.Draw(img, 'RGBA')
-        draw.rounded_rectangle((max(0, self.menu_parameters['left']-self.menu_parameters['pad_x']),
-                                self.menu_parameters['top']+self.menu_parameters['step'],
-                                self.menu_parameters['right'],
-                                self.menu_parameters['top']+self.menu_parameters['step']+self.menu_parameters['height']),
-                               radius=self.menu_parameters['radius'],
+        bbox_pose = (self.menu_parameters['bbox_left'],
+                     self.menu_parameters['top_offset'] + self.menu_parameters['bbox_middle'] - int(self.menu_parameters['bbox_height']/2),
+                     self.menu_parameters['bbox_right']-1,
+                     self.menu_parameters['top_offset'] + self.menu_parameters['bbox_middle'] + int(self.menu_parameters['bbox_height']/2)-1)
+        draw.rounded_rectangle(bbox_pose,
+                               radius=self.menu_parameters['bbox_radius'],
                                fill=(0, 0, 0, 0),
                                outline=(255, 255, 255, 255),
-                               width=2)
+                               width=self.menu_parameters['bbox_lw'])
         self.LCD.screen_img = Image.alpha_composite(self.LCD.screen_img, img)
         return None
 
@@ -600,19 +585,23 @@ class MainMenuPage(Menu):
         super().__init__(config)
         self._config = config
         
-        self.menu_parameters = {**self.menu_parameters,
-            "top"       : 42,
-            "left"      : 4,
-            "pad_x"     : 8,
-            "pad_y"     : 12,
-            "length"    : 290,
-            "radius"    : 8,
-            "step"      : 60,
-            "max_line"  : 3,
-            "font_size" : "L",
-            "icon"      : 1,
-            "icon_space": 12
-            }
+        self.menu_parameters = {
+            "top_offset"  : 32,
+            "step"        : 60,
+            "text_middle" : 8,
+            "text_left"   : 64,
+            "bbox_middle" : 72,
+            "bbox_height" : 60,
+            "bbox_left"   : 0,
+            "bbox_right"  : 300,
+            "bbox_radius" : 12,
+            "bbox_lw"     : 3,
+            "icon"        : True,
+            "icon_middle" : 12,
+            "icon_left"   : 6,
+            "font_size"   : "L",
+            "max_line"    : 3,
+        }
         
         # Set callbacks for navigation keys
         self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
@@ -933,18 +922,20 @@ class SettingPage(Menu):
         self._config = config
         
         self.menu_parameters = {
-            "top"        : 50,
-            "left"       : 12,
-            "pad_x"      : 8,
-            "pad_y"      : 12,
-            "length"     : 290,
-            "radius"     : 8,
-            "step"       : 40,
-            "max_line"   : -1,
-            "font_size"  : "M",
-            "icon"       : 0,
-            "icon_space" : 12
-            }
+            "top_offset"  : 32,
+            "step"        : 32,
+            "text_left"   : 16,
+            "text_middle" : 4,
+            "bbox_left"   : 6,
+            "bbox_middle" : 38,
+            "bbox_height" : 35,
+            "bbox_right"  : 300,
+            "bbox_radius" : 8,
+            "bbox_lw"     : 2,
+            "icon"        : False,
+            "font_size"   : "M",
+            "max_line"    : -1,
+        }
         
         # Set callbacks for navigation keys
         self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
@@ -1051,7 +1042,7 @@ class PageManager:
 class MainApp:
     def __init__(self, UI_config_path):
         self.page_manager = PageManager(UI_config_path)
-        self.page_manager.show_page("main_menu_page")#"sequence_parameter_page")#
+        self.page_manager.show_page("main_menu_page")#"setting_page")#
         self.listener = keyboard.Listener(on_press=self.on_press)
         self.listener.start()
         return None
