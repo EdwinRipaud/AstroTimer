@@ -17,7 +17,7 @@
             },
             {
                 "name"  : "Battery",
-                "action" : "coming_soon_page",
+                "action" : "battery_page",
                 "icon"   : "Icon_Battery.png"
             },
             {
@@ -178,6 +178,17 @@
             "right" : ""
         },
         "pictures" : {
+        }
+    },
+    "battery_page" : {
+        "title" : "Battery",
+        "class" : "BatteryPage",
+        "keys" : {
+            "enter" : "go_back",
+            "up"    : "",
+            "down"  : "",
+            "left"  : "go_back",
+            "right" : ""
         }
     }
 }

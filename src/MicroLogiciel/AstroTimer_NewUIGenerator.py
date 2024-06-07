@@ -344,21 +344,7 @@ class Parameter(Page):
         self.parameter_seleceted = 0
         self.parameter_active = True
         
-        self.parameters_pose = {
-            "left"       : 12,
-            "top"        : 52,
-            "font_size"  : "M",
-            "step"       : 32,
-            "pad_x"      : 14,
-            "pad_y"      : 14,
-            "offset"     : 8,
-            "radius"     : 12,
-            "box_length" : 100,
-            'right'  : max([
-                ImageDraw.Draw(self.LCD.screen_img).textbbox((12, 0), param['name'],
-                               font=self.FONTS["PixelOperatorBold_M"], anchor='lm')[2]
-                for param in self.parameter_options]),
-            }
+        self.parameters_pose = {}
         
         # Set callbacks for navigation keys
         try:
@@ -543,6 +529,32 @@ class Picture(Page):
         return None
 
 # TODO: Create a class Info() to handle general information display
+class Info(Page):
+    def __init__(self, config):
+        logging.info("Info.__init__(): initialise Info specific options")
+        super().__init__(config)
+        self._config = config
+        
+        # Set callbacks for navigation keys
+        try:
+            self.keys_callbacks = {
+                **self.keys_callbacks,
+                }
+        except AttributeError:
+            self.keys_callbacks = {}
+        return None
+    
+    def navigate(self, direction):
+        super().navigate(direction)
+        logging.info(f"Info.navigate({direction}): execute '{self.action.__name__}'")
+        self.action()
+        return None
+    
+    def display(self):
+        logging.info("Info.display(): add infos to the display")
+        super().display()
+        return None
+
 
 
 class ComingSoonPage(Page):
@@ -567,12 +579,12 @@ class ComingSoonPage(Page):
         draw = ImageDraw.Draw(self.LCD.screen_img)
         
         icon = self.default_icon
-        self.LCD.screen_img.paste(icon, (120, 65))
+        self.LCD.screen_img.paste(icon, (160-int(icon.width/2), 60))
         
         option_font = self.FONTS["PixelOperatorBold_M"]
-        option_pos = (64, 120)
-        option_text = "Comming soon"
-        draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255))
+        option_text = "Coming soon"
+        option_pos = (160, 130)
+        draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255), anchor='mm')
         
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
@@ -691,7 +703,7 @@ class SequenceParameterPage(Parameter, Button):
         super().__init__(config)
         self._config = config
         
-        self.parameters_pose = {**self.parameters_pose,
+        self.parameters_pose = {
             "left"       : 12,
             "top"        : 52,
             "font_size"  : "M",
@@ -958,9 +970,46 @@ class SettingPage(Menu):
         logging.info(f"SettingPage.navigate({direction}): execute '{self.action.__name__}'")
         self.action()
         return None
-    
+
 
 # TODO: Create class BatteryPage() to handle battery information display
+class BatteryPage(Info):
+    def __init__(self, config, callbacks):
+        logging.info("BatteryPage.__init__(): initialise BatteryPage")
+        super().__init__(config)
+        self._config = config
+        
+        # Set callbacks for navigation keys
+        self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
+        
+        # Set callbacks for navigation
+        self.page_callbacks = {**self.page_callbacks, **callbacks["page_callbacks"]}
+        
+        self.action = lambda: None
+        return None
+    
+    def display(self):
+        logging.info("BatteryPage.display(): display BatteryPage")
+        super().display()
+        draw = ImageDraw.Draw(self.LCD.screen_img)
+        
+        icon = self.default_icon
+        self.LCD.screen_img.paste(icon, (160-int(icon.width/2), 50))
+        
+        option_font = self.FONTS["PixelOperatorBold_M"]
+        option_text = "BatteryPage()\ncoming soon"
+        option_pos = (160, 130)
+        draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255), anchor='mm')
+        
+        self._draw_status_bar()
+        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+        return None
+    
+    def navigate(self, direction):
+        super().navigate(direction)
+        logging.info(f"BatteryPage.navigate({direction}): execute '{self.action.__name__}'")
+        self.action()
+        return None
 
 
 class PageManager:
@@ -976,36 +1025,29 @@ class PageManager:
         self.current_page = None
         self.page_stack = []
         
-        # Set class correspondance
+        # Set class correspondance dict
         self.class_dict = {
-            "MainMenuPage": MainMenuPage,
-            "ComingSoonPage": ComingSoonPage,
-            "ShutdownPage": ShutdownPage,
-            "SequenceParameterPage": SequenceParameterPage,
-            "SettingPage" : SettingPage,
-            "WifiPage": WifiPage,
-            "SmartphonePage": SmartphonePage,
+            "MainMenuPage"          : MainMenuPage,
+            "ComingSoonPage"        : ComingSoonPage,
+            "ShutdownPage"          : ShutdownPage,
+            "SequenceParameterPage" : SequenceParameterPage,
+            "SettingPage"           : SettingPage,
+            "WifiPage"              : WifiPage,
+            "SmartphonePage"        : SmartphonePage,
+            "BatteryPage"           : BatteryPage,
             }
         
-        # Define interface level callback function
+        # Define interface level keys callback function
         self.keys_callbacks = {
-            "go_back": self.go_back,
-            "shutdown": self.shutdown,
+            "go_back"  : self.go_back,
+            "shutdown" : self.shutdown,
             }
-        #
-        self.page_callbacks = {
-            "main_menu_page": self.show_page,
-            "sequence_parameter_page": self.show_page,
-            "setting_page" : self.show_page,
-            "wifi_page": self.show_page,
-            "smartphone_page": self.show_page,
-            "shutdown_page": self.show_page,
-            "coming_soon_page": self.show_page,
-            }
+        # Define interface level page callback function
+        self.page_callbacks = {key:self.show_page for key in self.pages_structure.keys()}
         
         self.callbacks = {
-            "keys_callbacks": self.keys_callbacks,
-            "page_callbacks": self.page_callbacks,
+            "keys_callbacks" : self.keys_callbacks,
+            "page_callbacks" : self.page_callbacks,
             }
         
         self.load_pages()
