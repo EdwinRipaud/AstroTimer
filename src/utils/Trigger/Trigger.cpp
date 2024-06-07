@@ -9,7 +9,8 @@ int PIN_FOCUS = 20;
 int main(int argc, char** argv) {
   
   if (argc!=4){
-    std::cout << "Not enought arguments: 3 required\n";
+    std::cout << "Not enought arguments...\n";
+    std::cout << "The command need to be :\n\tsudo ./Trigger.exe Exposure_time Nb_shots Delay_time\n";
     exit(0);
   }
   
