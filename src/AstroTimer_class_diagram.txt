@@ -98,6 +98,13 @@ classDiagram
             -_generate_QRCode(text)
             +display()
         }
+        
+        class Info{
+            -dict _config
+            +dict keys_callbacks
+            +navigate()
+            +display()
+        }
     }
     
     class ComingSoonPage{
@@ -143,6 +150,15 @@ classDiagram
         +display()
     }
     
+    class BatteryPage{
+        -dict _config
+        +dict keys_callbacks
+        +dict page_callbacks
+        +func action
+        +navigate()
+        +display()
+    }
+    
     class SettingPage{
         -dict _config
         +dict keys_callbacks
@@ -178,12 +194,14 @@ classDiagram
     Page <|-- Button
     Page <|-- Parameter
     Page <|-- Picture
+    Page <|-- Info
         
     Page <|-- ComingSoonPage
     Menu <|-- MainMenuPage
     Button <|-- ShutdownPage
     Parameter <|-- SequenceParameterPage
     Button <|-- SequenceParameterPage
+    Info <|-- BatteryPage
     Menu <|-- SettingPage
     Picture <|-- WifiPage
     Picture <|-- SmartphonePage
@@ -192,6 +210,7 @@ classDiagram
     MainMenuPage o-- PageManager
     ShutdownPage o-- PageManager
     SequenceParameterPage o-- PageManager
+    BatteryPage o-- PageManager
     SettingPage o-- PageManager
     WifiPage o-- PageManager
     SmartphonePage o-- PageManager
