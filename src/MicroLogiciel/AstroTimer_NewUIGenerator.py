@@ -43,7 +43,6 @@ logging.basicConfig(level=logging.INFO)
 
 
 # TODO: Move all high level class to an other .py to keep main.py clear
-
 class Page:
     def __init__(self, page_config:dict):
         logging.info("Page.__init__(): initialise utils attributes for the page")
@@ -55,27 +54,8 @@ class Page:
         # Set callbacks for navigation
         self.page_callbacks = {}
         
-        # read config_general.json file to initialise parameters
-        with open(PATH_GENERAL_CONFIG, 'r') as f:
-            self.general_config =  json.load(f)
-        
-        for key, path in self.general_config["paths"].items():
-            setattr(self, key, path)
-        
-        # Set default icon for bad icon request
-        self.default_icon = Image.open(f"{self.PATH_ASSETS}Icon_Empty.png")
-        
-        # Set fonts dictionary
-        self.FONTS = {key: ImageFont.truetype(self.PATH_FONTS + data['path'], data['size']) for key, data in self.general_config["fonts"].items()}
-        
-        # Set battery icon dictionary
-        self.BATTERY_DICT = {data: f"{self.PATH_ASSETS}{key}" for key, data in self.general_config["battery_icons"].items()}
-        
-        # Initialise LCD class
-        self.LCD = LCD_1inch47.LCD_1inch47(**self.general_config["display"])
-        
-        self.BATTERY_LEVEL          = 47
-        self.STATUS_TXT             = "Ready to GO !"
+        self.BATTERY_LEVEL = 47
+        self.STATUS_TXT    = "Ready to GO !"
     
     def _get_battery_icon(self):
         logging.info("Page._get_battery_icon(): get the appropriate battery icon")
@@ -230,11 +210,6 @@ class Button(Page):
         
         self.button_config = self._config["buttons"]
         self.button_options = self.button_config["options"]
-        self.button_parameters = {
-            "pad_x"  : 15,
-            "pad_y"  : 10,
-            "radius" : 12
-            }
         
         self.current_button = 0
         self.button_active = True
@@ -249,9 +224,6 @@ class Button(Page):
             'right'  : [bbox[2] for bbox in bboxs],
             'top'    : [bbox[1] for bbox in bboxs],
             'bottom' : [bbox[3] for bbox in bboxs],
-            'pad_x'  : self.button_parameters['pad_x'],
-            'pad_y'  : self.button_parameters['pad_y'],
-            'radius' : self.button_parameters['radius'],
             }
         
         # Set callbacks for navigation keys
@@ -558,8 +530,13 @@ class Info(Page):
 
 
 class ComingSoonPage(Page):
-    def __init__(self, config, callbacks):
+    def __init__(self, config, callbacks, general_config):
         logging.info("ComingSoonPage.__init__(): initialise ComingSoonPage")
+        
+        # Associate general high level attribute to 'self'
+        for key, value in general_config.items():
+            setattr(self, key, value)
+        
         super().__init__(config)
         self._config = config
         
@@ -592,8 +569,13 @@ class ComingSoonPage(Page):
 
 
 class MainMenuPage(Menu):
-    def __init__(self, config, callbacks):
+    def __init__(self, config, callbacks, general_config):
         logging.info("MainMenuPage.__init__(): initialise MainMenuPage")
+        
+        # Associate general high level attribute to 'self'
+        for key, value in general_config.items():
+            setattr(self, key, value)
+        
         super().__init__(config)
         self._config = config
         
@@ -613,7 +595,7 @@ class MainMenuPage(Menu):
             "icon_left"   : 6,
             "font_size"   : "L",
             "max_line"    : 3,
-        }
+            }
         
         # Set callbacks for navigation keys
         self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
@@ -639,12 +621,17 @@ class MainMenuPage(Menu):
 
 
 class ShutdownPage(Button):
-    def __init__(self, config, callbacks):
+    def __init__(self, config, callbacks, general_config):
         logging.info("ShutdownPage.__init__(): initialise ShutdownPage")
+        
+        # Associate general high level attribute to 'self'
+        for key, value in general_config.items():
+            setattr(self, key, value)
+        
         super().__init__(config)
         self._config = config
         
-        self.button_parameters = {
+        self.button_pose = {**self.button_pose,
             "pad_x"  : 15,
             "pad_y"  : 10,
             "radius" : 12
@@ -698,8 +685,13 @@ class ShutdownPage(Button):
 
 
 class SequenceParameterPage(Parameter, Button):
-    def __init__(self, config, callbacks):
+    def __init__(self, config, callbacks, general_config):
         logging.info("SequenceParameterPage.__init__(): initialise SequenceParameterPage")
+        
+        # Associate general high level attribute to 'self'
+        for key, value in general_config.items():
+            setattr(self, key, value)
+        
         super().__init__(config)
         self._config = config
         
@@ -719,7 +711,7 @@ class SequenceParameterPage(Parameter, Button):
                 for param in self.parameter_options]),
             }
             
-        self.button_parameters = {
+        self.button_pose = {**self.button_pose,
             "pad_x"  : 10,
             "pad_y"  : 10,
             "radius" : 6
@@ -825,8 +817,13 @@ class SequenceParameterPage(Parameter, Button):
 
 
 class WifiPage(Picture):
-    def __init__(self, config, callbacks):
+    def __init__(self, config, callbacks, general_config):
         logging.info("WifiPage.__init__(): initialise WifiPage")
+        
+        # Associate general high level attribute to 'self'
+        for key, value in general_config.items():
+            setattr(self, key, value)
+        
         super().__init__(config)
         self._config = config
         
@@ -879,8 +876,13 @@ class WifiPage(Picture):
 
 
 class SmartphonePage(Picture):
-    def __init__(self, config, callbacks):
+    def __init__(self, config, callbacks, general_config):
         logging.info("SmartphonePage.__init__(): initialise SmartphonePage")
+        
+        # Associate general high level attribute to 'self'
+        for key, value in general_config.items():
+            setattr(self, key, value)
+        
         super().__init__(config)
         self._config = config
         
@@ -928,8 +930,13 @@ class SmartphonePage(Picture):
 #       router ssid and passphrase for internet access on wifi mode
 # TODO: Make a setting to check updates, only on wifi mode
 class SettingPage(Menu):
-    def __init__(self, config, callbacks):
+    def __init__(self, config, callbacks, general_config):
         logging.info("SettingPage.__init__(): initialise MainMenuPage")
+        
+        # Associate general high level attribute to 'self'
+        for key, value in general_config.items():
+            setattr(self, key, value)
+        
         super().__init__(config)
         self._config = config
         
@@ -947,7 +954,7 @@ class SettingPage(Menu):
             "icon"        : False,
             "font_size"   : "M",
             "max_line"    : -1,
-        }
+            }
         
         # Set callbacks for navigation keys
         self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
@@ -974,8 +981,13 @@ class SettingPage(Menu):
 
 # TODO: Create class BatteryPage() to handle battery information display
 class BatteryPage(Info):
-    def __init__(self, config, callbacks):
+    def __init__(self, config, callbacks, general_config):
         logging.info("BatteryPage.__init__(): initialise BatteryPage")
+        
+        # Associate general high level attribute to 'self'
+        for key, value in general_config.items():
+            setattr(self, key, value)
+        
         super().__init__(config)
         self._config = config
         
@@ -1013,9 +1025,9 @@ class BatteryPage(Info):
 
 
 class PageManager:
-    def __init__(self, UI_config_path):
+    def __init__(self, UI_config_path, general_config):
         logging.info("PageManager.__init__(): initialise PageManager")
-        
+        self._general_config = general_config
         self.QUIT = False
         
         with open(UI_config_path, 'r') as f:
@@ -1056,7 +1068,7 @@ class PageManager:
     def load_pages(self):
         logging.info("PageManager.load_page(): generate pages based on config file")
         for page_key, page_data in self.pages_structure.items():
-            self.pages[page_key] = self.class_dict[page_data["class"]](page_data, self.callbacks)
+            self.pages[page_key] = self.class_dict[page_data["class"]](page_data, self.callbacks, self._general_config)
         return None
     
     def show_page(self, page_key=None):
@@ -1083,22 +1095,51 @@ class PageManager:
 
 class MainApp:
     def __init__(self, UI_config_path):
-        self.page_manager = PageManager(UI_config_path)
+        
+        # read config_general.json file to initialise parameters
+        with open(PATH_GENERAL_CONFIG, 'r') as f:
+            self.general_config =  json.load(f)
+        
+        # Set default path for assets, fonts, wifi and website
+        self._general_config = {key:path for key, path in self.general_config["paths"].items()}
+        
+        # Set default icon for bad icon request
+        self._general_config['default_icon'] = Image.open(f"{self._general_config['PATH_ASSETS']}Icon_Empty.png")
+        
+        # Set fonts dictionary
+        self._general_config['FONTS'] = {key: ImageFont.truetype(self._general_config['PATH_FONTS'] + data['path'], data['size']) for key, data in self.general_config["fonts"].items()}
+        
+        # Set battery icon dictionary
+        self._general_config['BATTERY_DICT'] = {data: f"{self._general_config['PATH_ASSETS']}{key}" for key, data in self.general_config["battery_icons"].items()}
+        
+        # Initialise LCD class
+        self._general_config['LCD'] = LCD_1inch47.LCD_1inch47(**self.general_config["display"])
+        
+        
+        self.page_manager = PageManager(UI_config_path, self._general_config)
         self.page_manager.show_page("main_menu_page")#"setting_page")#
-        self.listener = keyboard.Listener(on_press=self.on_press)
-        self.listener.start()
+        
+        if RUN_ON_RPi:
+            self.general_config['GPIO_5_way_switch'] = {value:key for key, value in self.general_config['GPIO_5_way_switch'].items()}
+            for pin in self.general_config['GPIO_5_way_switch'].keys():
+                GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+                GPIO.add_event_detect(pin, GPIO.FALLING, callback=self.on_press)
+        else:
+            self.listener = keyboard.Listener(on_press=self.on_press)
+            self.listener.start()
         return None
     
-    def on_press(self, key):
+    def on_press(self, key_name):
+        key = self.general_config['GPIO_5_way_switch'][key_name] if RUN_ON_RPi else key_name.name
         try:
             if self.page_manager.current_page._config['class'] == "MainMenuPage":
-                if key.name == "left":
+                if key == "left":
                     if self.page_manager.current_page:
                         self.page_manager.page_stack.append(self.page_manager.current_page)
                     self.page_manager.current_page = self.page_manager.pages["shutdown_page"]
                     self.page_manager.current_page.display()
                     return None
-            self.page_manager.current_page.navigate(key.name)
+            self.page_manager.current_page.navigate(key)
         except AttributeError:
             pass
         return None
@@ -1113,7 +1154,10 @@ class MainApp:
     def clean_stop(self):
         logging.info("MainApp(class):clean_stop(): Cleanning MainApp(class)")
         self.page_manager.current_page.LCD.ClearScreen()
-        self.listener.stop()
+        if RUN_ON_RPi:
+            GPIO.cleanup()
+        else:
+            self.listener.stop()
         return None
 
 

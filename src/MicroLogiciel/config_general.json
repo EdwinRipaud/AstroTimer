@@ -8,6 +8,13 @@
             "port" : 55000
         }
     },
+    "GPIO_5_way_switch": {
+        "enter": 6,
+        "right": 19,
+        "left" : 5,
+        "up"   : 26,
+        "down" : 13
+    },
     "display": {
         "spi_bus"   : 0,
         "spi_device": 0,
