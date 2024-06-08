@@ -34,6 +34,7 @@ PATH_GENERAL_CONFIG = 'config_general.json'
 
 logging.config.fileConfig('logging.conf')
 app_logger = logging.getLogger('appLogger')
+app_logger.info("New execution of the AstroTimer program")
 
 
 # TODO: add night vision mode to LCD with this code:
