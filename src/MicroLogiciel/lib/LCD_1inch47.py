@@ -1,6 +1,7 @@
 import os
 import time
 import logging
+import logging.config
 import numpy as np
 from PIL import Image
 
@@ -13,6 +14,10 @@ if RUN_ON_RPi:
 
 SCRIPT_NAME = __file__.split('/')[-1]
 
+logging.config.fileConfig('logging.conf')
+lib_logger = logging.getLogger('libLogger')
+lib_logger.debug("Imported file")
+
 # PIL Image Transpose configuration
 FLIP_LEFT_RIGHT = 0
 FLIP_TOP_BOTTOM = 1
@@ -23,9 +28,10 @@ TRANSPOSE       = 5
 TRANSVERSE     	= 6
 
 class LCD_1inch47():
-    
-    
+    class_logger = logging.getLogger('displayLogger')
     def __init__(self, spi_bus=0, spi_device=0, spi_freq=40000000, rst=27, dc=25, bl=18, bl_freq=1000):
+        self.class_logger.debug("initialise LCD_1inch47 display",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if RUN_ON_RPi:
             self.instance = lcdconfig.RaspberryPi(spi_bus, spi_device, spi_freq, rst, dc, bl, bl_freq)
             self.Init()
@@ -35,42 +41,49 @@ class LCD_1inch47():
         self.size = (self.width, self.height)
         self.__black_frame = Image.new(mode="RGBA", size=(self.height, self.width), color=(0, 0, 0, 255))
         self.screen_img = self.__black_frame
-        return
+        return None
     
-    # called when an attribute is not found:
     def __getattr__(self, name):
+        self.class_logger.info("attribute not found",
+                               extra={'className':f"{self.__class__.__name__}:"})
         # assume it is implemented by self.instance
         return self.instance.__getattribute__(name)
     
     def _command(self, cmd):
+        self.class_logger.info("send command to display via SPI",
+                               extra={'className':f"{self.__class__.__name__}:"})
         self.digital_write(self.DC_PIN, self.GPIO.LOW)
         self.spi_writebyte([cmd])
-        return
+        return None
         
     def _data(self, val):
+        self.class_logger.info("send data to display via SPI",
+                               extra={'className':f"{self.__class__.__name__}:"})
         self.digital_write(self.DC_PIN, self.GPIO.HIGH)
-        self.spi_writebyte([val])	
-        return
+        self.spi_writebyte([val])
+        return None
     
     def _reset(self):
-        """Reset the display"""
+        self.class_logger.info("reset display",
+                               extra={'className':f"{self.__class__.__name__}:"})
         self.GPIO.output(self.RST_PIN, self.GPIO.HIGH)
         time.sleep(0.01)
         self.GPIO.output(self.RST_PIN, self.GPIO.LOW)
         time.sleep(0.01)
         self.GPIO.output(self.RST_PIN, self.GPIO.HIGH)
         time.sleep(0.01)
-        return
+        return None
     
     def Init(self):
-        """Initialize dispaly"""  
-        self.module_init()
+        self.class_logger.debug("initialise display",
+                                extra={'className':f"{self.__class__.__name__}:"})
+        self.instance.module_init()
         self._reset()
         
         self._command(0x36)
-        self._data(0x00)                 #self.data(0x00)
+        self._data(0x00)
         
-        self._command(0x3A) 
+        self._command(0x3A)
         self._data(0x05)
         
         self._command(0xB2)
@@ -81,7 +94,7 @@ class LCD_1inch47():
         self._data(0x33)
         
         self._command(0xB7)
-        self._data(0x35) 
+        self._data(0x35)
         
         self._command(0xBB)
         self._data(0x35)
@@ -93,13 +106,13 @@ class LCD_1inch47():
         self._data(0x01)
         
         self._command(0xC3)
-        self._data(0x13)   
+        self._data(0x13)
         
         self._command(0xC4)
         self._data(0x20)
         
         self._command(0xC6)
-        self._data(0x0F) 
+        self._data(0x0F)
         
         self._command(0xD0)
         self._data(0xA4)
@@ -143,9 +156,11 @@ class LCD_1inch47():
         self._command(0x11)
         
         self._command(0x29)
-        return
+        return None
     
     def SetWindows(self, Xstart, Ystart, Xend, Yend):
+        self.class_logger.debug("set display view windows",
+                                extra={'className':f"{self.__class__.__name__}:"})
         #set the X coordinates
         self._command(0x2A)
         self._data((Xstart)>>8& 0xff)     #Set the horizontal starting point to the high octet
@@ -164,43 +179,53 @@ class LCD_1inch47():
         return None
         
     def _reset_frame(self):
+        self.class_logger.info("reset current frame",
+                               extra={'className':f"{self.__class__.__name__}:"})
         self.screen_img = self.__black_frame
         return None
     
     def _imagePreProcessing(self, image):
+        self.class_logger.info("pre_process frame to fit display",
+                               extra={'className':f"{self.__class__.__name__}:"})
         if image.size != (self.size):
-            #print(f"Image need to be corrected: {image.size} != {self.size}")
+            self.class_logger.info(f"Image need to be corrected: {image.size} != {self.size}",
+                                   extra={'className':f"{self.__class__.__name__}:"})
             if (image.width in self.size) and (image.height in self.size):
-                #print(f"Image has the good shape but needs to be rotated")
+                self.class_logger.info("Image has the good shape but needs to be rotated",
+                                       extra={'className':f"{self.__class__.__name__}:"})
                 image = image.transpose(ROTATE_270)
             else:
-                #print(f"Image hasn't the right shape...")
+                self.class_logger.info("Image hasn't the right shape...",
+                                       extra={'className':f"{self.__class__.__name__}:"})
                 if (image.width == self.width):
-                    #print(f"Image need to be cut along the height")
+                    self.class_logger.info("Image need to be cut along the height",
+                                           extra={'className':f"{self.__class__.__name__}:"})
                     image = image.crop((0, 0, self.width, self.height))
                 elif (image.width == self.height):
-                    #print(f"Image need to be transpose and cut along the height")
+                    self.class_logger.info("Image need to be transpose and cut along the height",
+                                           extra={'className':f"{self.__class__.__name__}:"})
                     image = image.transpose(ROTATE_270)
                     img_width, img_height = image.width, image.height
                     image = image.crop((img_width-self.width, img_height-self.height, img_width, img_height))
                 elif (image.height == self.width):
-                    #print(f"Image need to be transpose and cut along the width")
+                    self.class_logger.info("Image need to be transpose and cut along the width",
+                                           extra={'className':f"{self.__class__.__name__}:"})
                     image = image.transpose(ROTATE_270)
                     img_width, img_height = image.width, image.height
                     image = image.crop((img_width-self.width, img_height-self.height, img_width, img_height))
                 elif (image.height == self.height):
-                    #print(f"Image need to be cut along the width")
+                    self.class_logger.info("Image need to be cut along the width",
+                                           extra={'className':f"{self.__class__.__name__}:"})
                     img_width, img_height = image.width, image.height
                     image = image.crop((img_width-self.width, img_height-self.height, img_width, img_height))
                 else:
-                    logging.info(f"{SCRIPT_NAME}:class>>LCD_1inch47():_imagePreProcessing(): This message shouldn't appear...")
-        #else:
-            #print(f"Image can be display !")
+                    self.class_logger.warning("This message shouldn't appear...",
+                                              extra={'className':f"{self.__class__.__name__}:"})
         return image
     
     def ShowImage(self, image=None, show=False):
-        """Set buffer to value of Python Imaging Library image."""
-        """Write display buffer to physical display"""
+        self.class_logger.debug("display frame on screen",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if not image:
             image = self.screen_img
         
@@ -228,7 +253,8 @@ class LCD_1inch47():
         return None
     
     def ClearScreen(self):
-        logging.info(f"{SCRIPT_NAME}:class>>LCD_1inch47():ClearScreen(): clear display and reset self.screen_img")
+        self.class_logger.debug("clear display and reset current frame",
+                                extra={'className':f"{self.__class__.__name__}:"})
         self._reset_frame()
         if RUN_ON_RPi:
             self.clear(val=0x00)
@@ -236,12 +262,11 @@ class LCD_1inch47():
         return None
     
     def clear(self, val=0xff):
-        """Clear contents of image buffer"""
+        self.class_logger.debug("clear frame buffer content",
+                                extra={'className':f"{self.__class__.__name__}:"})
         _buffer = [val]*(self.width * self.height * 2)
         self.SetWindows ( 0, 0, self.width, self.height)
         self.digital_write(self.DC_PIN,self.GPIO.HIGH)
         for i in range(0,len(_buffer),4096):
             self.spi_writebyte(_buffer[i:i+4096])
         return None
-    
-

@@ -27,16 +27,22 @@
 # THE SOFTWARE.
 #
 
-import os
-import sys
 import time
 import spidev
 import logging
+import logging.config
 
 SCRIPT_NAME = __file__.split('/')[-1]
 
+logging.config.fileConfig('logging.conf')
+lib_logger = logging.getLogger('libLogger')
+lib_logger.debug("Imported file")
+
 class RaspberryPi:
+    class_logger = logging.getLogger('displayLogger')
     def __init__(self, spi_bus=0, spi_device=0, spi_freq=40000000, rst=27, dc=25, bl=18, bl_freq=1000):
+        self.class_logger.debug("initialise display interface with RaspberryPi",
+                                extra={'className':f"{self.__class__.__name__}:"})
         import RPi.GPIO
         self.RST_PIN    = rst
         self.DC_PIN     = dc
@@ -44,61 +50,78 @@ class RaspberryPi:
         self.SPEED      = spi_freq
         self.BL_freq    = bl_freq
         self.GPIO       = RPi.GPIO
-        #self.GPIO.cleanup()
+        
         self.GPIO.setmode(self.GPIO.BCM)
         self.GPIO.setwarnings(False)
-        self.GPIO.setup(self.RST_PIN,   self.GPIO.OUT)
-        self.GPIO.setup(self.DC_PIN,    self.GPIO.OUT)
-        self.GPIO.setup(self.BL_PIN,    self.GPIO.OUT)
-        self.GPIO.output(self.BL_PIN,   self.GPIO.HIGH)        
+        self.GPIO.setup(self.RST_PIN, self.GPIO.OUT)
+        self.GPIO.setup(self.DC_PIN, self.GPIO.OUT)
+        self.GPIO.setup(self.BL_PIN, self.GPIO.OUT)
+        self.GPIO.output(self.BL_PIN, self.GPIO.HIGH)
         #Initialize SPI
         self.SPI = spidev.SpiDev(spi_bus, spi_device)
         if self.SPI!=None :
             self.SPI.max_speed_hz = spi_freq
             self.SPI.mode = 0b00
-
+        return None
+    
     def digital_write(self, pin, value):
+        self.class_logger.info("set GPIO pin state",
+                               extra={'className':f"{self.__class__.__name__}:"})
         self.GPIO.output(pin, value)
-
+        return None
+    
     def digital_read(self, pin):
+        self.class_logger.info("read GPIO pin state",
+                               extra={'className':f"{self.__class__.__name__}:"})
         return self.GPIO.input(pin)
 
     def delay_ms(self, delaytime):
+        self.class_logger.info("wait delay",
+                               extra={'className':f"{self.__class__.__name__}:"})
         time.sleep(delaytime / 1000.0)
-
+        return None
+    
     def spi_writebyte(self, data):
+        self.class_logger.info("write data to SPI bus",
+                               extra={'className':f"{self.__class__.__name__}:"})
         if self.SPI!=None :
             self.SPI.writebytes(data)
+        return None
     
     def set_bl_DutyCycle(self, duty):
+        self.class_logger.info("set display backlight brightness",
+                               extra={'className':f"{self.__class__.__name__}:"})
         self._pwm.ChangeDutyCycle(duty)
-        
+        return None
+    
     def set_bl_Frequency(self,freq):
+        self.class_logger.info("set display response time",
+                               extra={'className':f"{self.__class__.__name__}:"})
         self._pwm.ChangeFrequency(freq)
-           
+        return None
+    
     def module_init(self):
+        self.class_logger.debug("initialise display backlight and SPI communication",
+                                extra={'className':f"{self.__class__.__name__}:"})
         self.GPIO.setup(self.RST_PIN, self.GPIO.OUT)
         self.GPIO.setup(self.DC_PIN, self.GPIO.OUT)
         self.GPIO.setup(self.BL_PIN, self.GPIO.OUT)
         self._pwm=self.GPIO.PWM(self.BL_PIN, self.BL_freq)
         self._pwm.start(100)
         if self.SPI!=None :
-            self.SPI.max_speed_hz = self.SPEED        
-            self.SPI.mode = 0b00     
-        return 0
-
+            self.SPI.max_speed_hz = self.SPEED
+            self.SPI.mode = 0b00
+        return None
+    
     def module_exit(self):
-        logging.debug(f"{SCRIPT_NAME}:RaspberryPi(class):module_exit(): spi end")
+        self.class_logger.debug("SPI end and GPIO cleanup",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if self.SPI!=None :
             self.SPI.close()
         
-        logging.debug(f"{SCRIPT_NAME}:RaspberryPi(class):module_exit(): gpio cleanup")
         self.GPIO.output(self.RST_PIN, 1)
-        self.GPIO.output(self.DC_PIN, 0)        
+        self.GPIO.output(self.DC_PIN, 0)
         self._pwm.stop()
         time.sleep(0.001)
         self.GPIO.output(self.BL_PIN, 1)
-        #self.GPIO.cleanup()
-        return
-
-### END OF FILE ###
+        return None

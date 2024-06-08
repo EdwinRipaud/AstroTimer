@@ -1,51 +1,41 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat May 25 11:19:59 2024
+Created on Sat Jun  8 11:31:48 2024
 
-@author: edwinripaud
+@author: Er-berry
 """
 
 import os
 import json
 import qrcode
 import logging
+import logging.config
 import subprocess
 import numpy as np
-from lib import LCD_1inch47
-from PIL import Image, ImageDraw, ImageFont
-
-abspath = os.path.abspath(__file__)
-dirname = os.path.dirname(abspath)
-os.chdir(dirname)
+from PIL import Image, ImageDraw
 
 OPERATING_SYSTEM = os.uname()
 RUN_ON_RPi = (OPERATING_SYSTEM.sysname == 'Linux') and (OPERATING_SYSTEM.machine in ['aarch64', 'armv6l'])
 
 if RUN_ON_RPi:
-    import RPi.GPIO as GPIO
-    GPIO.setmode(GPIO.BCM)
     BYPASS_BUILTIN_SCREEN = False
 else:
-    from pynput import keyboard
     BYPASS_BUILTIN_SCREEN = True
 
-PATH_GENERAL_CONFIG = 'config_general.json'
 
-logging.basicConfig(level=logging.INFO)
+SCRIPT_NAME = __file__.split('/')[-1]
 
-
-# TODO: add night vision mode to LCD with this code:
-#   black_img = Image.new(mode="RGB", size=self.LCD.size[::-1], color=(0)).split()[0]
-#   alpha_img = Image.new(mode="RGB", size=self.LCD.size[::-1], color=(255)).split()[0]
-#   red_frame = Image.merge('RGBA', (self.LCD.screen_img.split()[0], black_img, black_img, alpha_img))
-#   self.LCD.screen_img = Image.blend(self.LCD.screen_img, red_frame, alpha=0.6)
+logging.config.fileConfig('logging.conf')
+lib_logger = logging.getLogger('libLogger')
+lib_logger.debug("Imported file")
 
 
-# TODO: Move all high level class to an other .py to keep main.py clear
 class Page:
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, page_config:dict):
-        logging.info("Page.__init__(): initialise utils attributes for the page")
+        self.class_logger.info("initialise utils attributes for the page",
+                                extra={'className':f"{self.__class__.__name__}:"})
         
         self.title = page_config["title"]
         
@@ -56,9 +46,11 @@ class Page:
         
         self.BATTERY_LEVEL = 47
         self.STATUS_TXT    = "Ready to GO !"
+        return None
     
     def _get_battery_icon(self):
-        logging.info("Page._get_battery_icon(): get the appropriate battery icon")
+        self.class_logger.debug("get the appropriate battery icon",
+                               extra={'className':f"{self.__class__.__name__}:"})
         auth_level = np.array(list(self.BATTERY_DICT.keys()))
         auth_level[::-1].sort()
         
@@ -69,7 +61,8 @@ class Page:
         return self.BATTERY_DICT[auth_level[arg]]
     
     def _draw_status_bar(self):
-        logging.info("Page._draw_status_bar(): add status bar to the display")
+        self.class_logger.debug("add status bar to the display",
+                               extra={'className':f"{self.__class__.__name__}:"})
         
         draw = ImageDraw.Draw(self.LCD.screen_img)
         
@@ -87,23 +80,27 @@ class Page:
         return None
     
     def display(self):
-        logging.info("Page.display(): initialise new LCD image")
+        self.class_logger.info("initialise new LCD image",
+                                extra={'className':f"{self.__class__.__name__}:"})
         # Generate an image representing the page
         self.LCD.screen_img = Image.new(mode="RGBA", size=self.LCD.size[::-1], color=(0, 0, 0, 255))
         return None
     
     def navigate(self, direction):
-        logging.info("Page.navigate(): navigate in the page")
+        self.class_logger.info("navigate in the page",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if direction in self.keys.keys():
             if self.keys[direction] not in ['', 'none']:
-                logging.info(f"Page.navigate({direction}): callback function '{self.keys[direction]}'")
+                self.class_logger.debug("callback function '{self.keys[direction]}'")
                 self.action = self.keys_callbacks[self.keys[direction]]
         return None
 
 
 class Menu(Page):
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, config):
-        logging.info("Menu.__init__(): initialise menu specific options")
+        self.class_logger.info("initialise menu specific options",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().__init__(config)
         self._config = config
         
@@ -121,6 +118,8 @@ class Menu(Page):
                 'menu_select' : self.menu_select,
                 }
         except AttributeError:
+            self.class_logger.warning("keys_callbacks doesn't existe",
+                                      extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks = {
                 'menu_up'     : self.menu_up,
                 'menu_down'   : self.menu_down,
@@ -129,29 +128,35 @@ class Menu(Page):
         return None
     
     def menu_up(self):
-        logging.info("Menu.menu_up(): move menu up")
+        self.class_logger.info("move menu up",
+                                extra={'className':f"{self.__class__.__name__}:"})
         self.current_menu = (self.current_menu - 1) % len(self.menu_options)
         self.display()
         return None
     
     def menu_down(self):
-        logging.info("Menu.menu_down(): move menu down")
+        self.class_logger.info("move menu down",
+                                extra={'className':f"{self.__class__.__name__}:"})
         self.current_menu = (self.current_menu + 1) % len(self.menu_options)
         self.display()
         return None
     
     def menu_select(self):
-        logging.info("Menu.menu_select(): handle menu selection callbacks")
+        self.class_logger.info("handle menu selection callbacks",
+                                extra={'className':f"{self.__class__.__name__}:"})
         action = self.menu_options[self.current_menu]["action"]
         if action not in ['', 'none']:
-            logging.info(f"Menu.menu_select(): action '{action}'")
+            self.class_logger.debug("action '{action}'",
+                                    extra={'className':f"{self.__class__.__name__}:"})
             self.page_callbacks[action](action)
         else:
-            logging.info("Menu.menu_select(): no action to trigger")
+            self.class_logger.debug("no action to trigger",
+                                    extra={'className':f"{self.__class__.__name__}:"})
         return None
     
     def display(self):
-        logging.info("Menu.display(): add menu elements to the display")
+        self.class_logger.info("add menu elements to the display",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img, 'RGBA')
         if self.menu_parameters['max_line'] > 0:
@@ -203,8 +208,10 @@ class Menu(Page):
 
 
 class Button(Page):
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, config):
-        logging.info("Button.__init__(): initialise menu specific options")
+        self.class_logger.info("initialise menu specific options",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().__init__(config)
         self._config = config
         
@@ -235,6 +242,8 @@ class Button(Page):
                 'button_select' : self.button_select,
                 }
         except AttributeError:
+            self.class_logger.warning("keys_callbacks doesn't existe",
+                                      extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks = {
                 'button_up'     : self.button_up,
                 'button_down'   : self.button_down,
@@ -243,29 +252,35 @@ class Button(Page):
         return None
     
     def button_up(self):
-        logging.info("Button.button_up(): move to the next button")
+        self.class_logger.info("move to the next button",
+                                extra={'className':f"{self.__class__.__name__}:"})
         self.current_button = (self.current_button - 1) % len(self.button_options)
         self.display()
         return None
     
     def button_down(self):
-        logging.info("Button.button_down(): move to the previous button")
+        self.class_logger.info("move to the previous button",
+                                extra={'className':f"{self.__class__.__name__}:"})
         self.current_button = (self.current_button + 1) % len(self.button_options)
         self.display()
         return None
     
     def button_select(self):
-        logging.info("Button.button_select(): handle menu selection callbacks")
+        self.class_logger.info("handle menu selection callbacks",
+                                extra={'className':f"{self.__class__.__name__}:"})
         action = self.menu_options[self.current_button]["action"]
         if action not in ['', 'none']:
-            logging.info(f"Button.button_select(): action '{action}'")
+            self.class_logger.debug("action '{action}'",
+                                    extra={'className':f"{self.__class__.__name__}:"})
             self.page_callbacks[action](action)
         else:
-            logging.info("Button.button_select(): No action yet !")
+            self.class_logger.debug("No action yet !",
+                                    extra={'className':f"{self.__class__.__name__}:"})
         return None
     
     def display(self):
-        logging.info("Button.display(): add menu elements to the display")
+        self.class_logger.info("add menu elements to the display",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
         # Add buttons
@@ -299,13 +314,14 @@ class Button(Page):
                       font=option_font,
                       fill=(255, 255, 255),
                       anchor='mm')
-        
         return None
 
 
 class Parameter(Page):
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, config):
-        logging.info("Parameter.__init__(): initialise parameter specific options")
+        self.class_logger.info("initialise parameter specific options",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().__init__(config)
         self._config = config
         
@@ -326,6 +342,8 @@ class Parameter(Page):
                 'parameter_down' : [self.parameter_down, self.parameter_decrement],
                 }
         except AttributeError:
+            self.class_logger.warning("keys_callbacks doesn't existe",
+                                      extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks = {
                 'parameter_up'   : [self.parameter_up, self.parameter_increment],
                 'parameter_down' : [self.parameter_down, self.parameter_decrement],
@@ -333,26 +351,31 @@ class Parameter(Page):
         return None
     
     def parameter_up(self):
-        logging.info("Parameter.parameter_up(): move current parameter up")
+        self.class_logger.info("move current parameter up",
+                                extra={'className':f"{self.__class__.__name__}:"})
         self.current_parameter = (self.current_parameter - 1) % len(self.parameter_options)
         self.display()
         return None
     
     def parameter_down(self):
-        logging.info("Parameter.parameter_down(): move current parameter down")
+        self.class_logger.info("move current parameter down",
+                                extra={'className':f"{self.__class__.__name__}:"})
         self.current_parameter = (self.current_parameter + 1) % len(self.parameter_options)
         self.display()
         return None
     
     def parameter_select(self):
-        logging.info("Parameter.parameter_select(): handle parameter selection callbacks")
+        self.class_logger.info("handle parameter selection callbacks",
+                                extra={'className':f"{self.__class__.__name__}:"})
         self.parameter_seleceted = (self.parameter_seleceted+1)%2
-        logging.info(f"Parameter.parameter_select(): Selected {bool(self.parameter_seleceted)}")
+        self.class_logger.debug("Selected {bool(self.parameter_seleceted)}",
+                                extra={'className':f"{self.__class__.__name__}:"})
         self.display()
         return None
     
     def parameter_increment(self):
-        logging.info("Parameter.parameter_increment(): increase current parameter value")
+        self.class_logger.info("increase current parameter value",
+                                extra={'className':f"{self.__class__.__name__}:"})
         parameter = self.parameter_options[self.current_parameter]
         value = parameter['value']
         step = parameter['step']
@@ -361,7 +384,8 @@ class Parameter(Page):
         return None
     
     def parameter_decrement(self):
-        logging.info("Parameter.parameter_decrement(): decrease current parameter value")
+        self.class_logger.info("decrease current parameter value",
+                                extra={'className':f"{self.__class__.__name__}:"})
         parameter = self.parameter_options[self.current_parameter]
         value = parameter['value']
         step = parameter['step']
@@ -370,7 +394,8 @@ class Parameter(Page):
         return None
     
     def navigate(self, direction):
-        logging.info("Parameter.navigate(): navigate in the parameters")
+        self.class_logger.info("navigate in the parameters",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if direction in self.keys.keys():
             if self.keys[direction] not in ['', 'none']:
                 if type(self.keys_callbacks[self.keys[direction]]) is list:
@@ -380,7 +405,8 @@ class Parameter(Page):
         return None
     
     def display(self):
-        logging.info("Parameter.display(): add parameter elements to the display")
+        self.class_logger.info("add parameter elements to the display",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
         # Add parameters with values
@@ -449,8 +475,10 @@ class Parameter(Page):
 
 
 class Picture(Page):
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, config):
-        logging.info("Picture.__init__(): initialise Picture specific options")
+        self.class_logger.info("initialise Picture specific options",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().__init__(config)
         self._config = config
         
@@ -469,11 +497,14 @@ class Picture(Page):
                 **self.keys_callbacks,
                 }
         except AttributeError:
+            self.class_logger.warning("keys_callbacks doesn't existe",
+                                      extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks = {}
         return None
     
     def _set_pose(self):
-        logging.info("Picture._set_pose(): compute image position in screen")
+        self.class_logger.info("compute image position in screen",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if 'position' in self.picture_options.keys():
             self.pose = self.picture_options['position']
         else:
@@ -482,7 +513,8 @@ class Picture(Page):
         return None
     
     def _generate_QRCode(self, text=""):
-        logging.info("Picture.get_QRCode(): generate QRCode")
+        self.class_logger.info("generate QRCode",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if len(text)>50:
             box_size = 4
         else:
@@ -494,7 +526,8 @@ class Picture(Page):
         return None
     
     def display(self):
-        logging.info("Picture.display(): add picture to the display")
+        self.class_logger.info("add picture to the display",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
         
         self.LCD.screen_img.paste(self.picture, self.pose)
@@ -502,8 +535,10 @@ class Picture(Page):
 
 # TODO: Create a class Info() to handle general information display
 class Info(Page):
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, config):
-        logging.info("Info.__init__(): initialise Info specific options")
+        self.class_logger.info("initialise Info specific options",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().__init__(config)
         self._config = config
         
@@ -513,25 +548,31 @@ class Info(Page):
                 **self.keys_callbacks,
                 }
         except AttributeError:
+            self.class_logger.warning("keys_callbacks doesn't existe",
+                                      extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks = {}
         return None
     
     def navigate(self, direction):
+        self.class_logger.info(f"execute '{self.action.__name__}'",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().navigate(direction)
-        logging.info(f"Info.navigate({direction}): execute '{self.action.__name__}'")
         self.action()
         return None
     
     def display(self):
-        logging.info("Info.display(): add infos to the display")
+        self.class_logger.info("add infos to the display",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
         return None
 
 
 
 class ComingSoonPage(Page):
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, config, callbacks, general_config):
-        logging.info("ComingSoonPage.__init__(): initialise ComingSoonPage")
+        self.class_logger.info("initialise ComingSoonPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         
         # Associate general high level attribute to 'self'
         for key, value in general_config.items():
@@ -545,13 +586,15 @@ class ComingSoonPage(Page):
         return None
     
     def navigate(self, direction):
+        self.class_logger.info(f"execute '{self.action.__name__}'",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().navigate(direction)
-        logging.info(f"ComingSoonPage.navigate({direction}): execute '{self.action.__name__}'")
         self.action()
         return None
     
     def display(self):
-        logging.info("ComingSoonPage.display(): display ComingSoonPage")
+        self.class_logger.info("display ComingSoonPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
         
@@ -569,8 +612,10 @@ class ComingSoonPage(Page):
 
 
 class MainMenuPage(Menu):
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, config, callbacks, general_config):
-        logging.info("MainMenuPage.__init__(): initialise MainMenuPage")
+        self.class_logger.info("initialise MainMenuPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         
         # Associate general high level attribute to 'self'
         for key, value in general_config.items():
@@ -607,22 +652,26 @@ class MainMenuPage(Menu):
         return None
     
     def display(self):
-        logging.info("MainMenuPage.display(): display MainMenuPage")
+        self.class_logger.info("display MainMenuPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
     
     def navigate(self, direction):
+        self.class_logger.info(f"execute '{self.action.__name__}'",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().navigate(direction)
-        logging.info(f"MainMenuPage.navigate({direction}): execute '{self.action.__name__}'")
         self.action()
         return None
 
 
 class ShutdownPage(Button):
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, config, callbacks, general_config):
-        logging.info("ShutdownPage.__init__(): initialise ShutdownPage")
+        self.class_logger.info("initialise ShutdownPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         
         # Associate general high level attribute to 'self'
         for key, value in general_config.items():
@@ -647,27 +696,33 @@ class ShutdownPage(Button):
         return None
     
     def select(self):
-        logging.info("ShutdownPage.select(): handle shutdown button selection")
+        self.class_logger.info("handle shutdown button selection",
+                                extra={'className':f"{self.__class__.__name__}:"})
         action = self.button_options[self.current_button]['action']
         
         if action in self.page_callbacks.keys():
-            logging.info(f"ShutdownPage.select(): action '{action}'")
+            self.class_logger.debug("action '{action}'",
+                                    extra={'className':f"{self.__class__.__name__}:"})
             self.page_callbacks[action](action)
         elif action in self.keys_callbacks.keys():
-            logging.info(f"ShutdownPage.select(): action '{action}'")
+            self.class_logger.debug("action '{action}'",
+                                    extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks[action]()
         else:
-            logging.info("ShutdownPage.select(): no action to trigger")
-        return
+            self.class_logger.debug("no action to trigger",
+                                    extra={'className':f"{self.__class__.__name__}:"})
+        return None
     
     def navigate(self, direction):
+        self.class_logger.info(f"execute '{self.action.__name__}'",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().navigate(direction)
-        logging.info(f"ShutdownPage.navigate({direction}): execute '{self.action.__name__}'")
         self.action()
         return None
     
     def display(self):
-        logging.info("ShutdownPage.display(): display ShutdownPage")
+        self.class_logger.info("display ShutdownPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
         
@@ -685,8 +740,10 @@ class ShutdownPage(Button):
 
 
 class SequenceParameterPage(Parameter, Button):
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, config, callbacks, general_config):
-        logging.info("SequenceParameterPage.__init__(): initialise SequenceParameterPage")
+        self.class_logger.info("initialise SequenceParameterPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         
         # Associate general high level attribute to 'self'
         for key, value in general_config.items():
@@ -746,7 +803,8 @@ class SequenceParameterPage(Parameter, Button):
         return None
     
     def activate_options(self):
-        logging.info("SequenceParameterPage.activate_options(): activate usefull options")
+        self.class_logger.info("activate usefull options",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if self.options_list[self.current_option] == 'parameter':
             self.parameter_active = True
             self.button_active = False
@@ -759,21 +817,26 @@ class SequenceParameterPage(Parameter, Button):
         return None
     
     def select(self):
-        logging.info("SequenceParameterPage.select(): handle selection action")
+        self.class_logger.info("handle selection action",
+                                extra={'className':f"{self.__class__.__name__}:"})
         action = self.button_options[self.current_button]['action']
         
         if action in self.page_callbacks.keys():
-            logging.info(f"SequenceParameterPage.select(): action '{action}'")
+            self.class_logger.debug("action '{action}'",
+                                    extra={'className':f"{self.__class__.__name__}:"})
             self.page_callbacks[action](action)
         elif action in self.keys_callbacks.keys():
-            logging.info(f"SequenceParameterPage.select(): action '{action}'")
+            self.class_logger.debug("action '{action}'",
+                                    extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks[action]()
         else:
-            logging.info("SequenceParameterPage.select(): no action to trigger")
-        return
+            self.class_logger.debug("no action to trigger",
+                                    extra={'className':f"{self.__class__.__name__}:"})
+        return None
     
     def option_up(self):
-        logging.info("SequenceParameterPage.option_up(): move current option up")
+        self.class_logger.info("move current option up",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if not self.parameter_seleceted:
             self.current_option = (self.current_option-1)%len(self.options_list)
         self.action = self.options_callbacks[self.options_list[self.current_option]]['up']
@@ -784,7 +847,8 @@ class SequenceParameterPage(Parameter, Button):
         return None
     
     def option_down(self):
-        logging.info("SequenceParameterPage.option_down(): move current option down")
+        self.class_logger.info("move current option down",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if not self.parameter_seleceted:
             self.current_option = (self.current_option+1)%len(self.options_list)
         self.action = self.options_callbacks[self.options_list[self.current_option]]['down']
@@ -795,7 +859,8 @@ class SequenceParameterPage(Parameter, Button):
         return None
     
     def navigate(self, direction):
-        logging.info("SequenceParameterPage.navigate(): navigate into sequence parameter page options")
+        self.class_logger.info("navigate into sequence parameter page options",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if direction in self.keys.keys():
             if direction == 'left':
                 self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
@@ -804,12 +869,14 @@ class SequenceParameterPage(Parameter, Button):
                     self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
                 else:
                     self.action = self.keys_callbacks[self.keys[direction]]
-            logging.info(f"SequenceParameterPage.navigate({direction}): execute '{self.action.__name__}'")
+            self.class_logger.debug(f"execute '{self.action.__name__}'",
+                                    extra={'className':f"{self.__class__.__name__}:"})
             self.action()
         return None
     
     def display(self):
-        logging.info("SequenceParameterPage.display(): display SequenceParameterPage")
+        self.class_logger.info("display SequenceParameterPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
@@ -817,8 +884,10 @@ class SequenceParameterPage(Parameter, Button):
 
 
 class WifiPage(Picture):
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, config, callbacks, general_config):
-        logging.info("WifiPage.__init__(): initialise WifiPage")
+        self.class_logger.info("initialise WifiPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         
         # Associate general high level attribute to 'self'
         for key, value in general_config.items():
@@ -837,7 +906,8 @@ class WifiPage(Picture):
         return None
     
     def get_wifi_QRCode(self):
-        logging.info("WifiPage.get_wifi_QRCode(): generate wifi connection QRCode")
+        self.class_logger.info("generate wifi connection QRCode",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if os.path.exists(self.PATH_WIFI):
             file_values = subprocess.check_output(f"sudo cat {self.PATH_WIFI}", shell=True).decode('utf-8')
             WIFI_CONFIG = {line.split('=')[0]:line.split('=')[1] for line in file_values.split('\n')[:-1]}
@@ -862,22 +932,26 @@ class WifiPage(Picture):
         return None
     
     def display(self):
-        logging.info("WifiPage.display(): display WifiPage")
+        self.class_logger.info("display WifiPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         self.get_wifi_QRCode()
         super().display()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
     
     def navigate(self, direction):
+        self.class_logger.info(f"execute '{self.action.__name__}'",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().navigate(direction)
-        logging.info(f"WifiPage.navigate({direction}): execute '{self.action.__name__}'")
         self.action()
         return None
 
 
 class SmartphonePage(Picture):
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, config, callbacks, general_config):
-        logging.info("SmartphonePage.__init__(): initialise SmartphonePage")
+        self.class_logger.info("initialise SmartphonePage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         
         # Associate general high level attribute to 'self'
         for key, value in general_config.items():
@@ -896,7 +970,8 @@ class SmartphonePage(Picture):
         return None
     
     def get_website_QRCode(self):
-        logging.info("SmartphonePage.get_website_QRCode(): generate website connection QRCode")
+        self.class_logger.info("generate website connection QRCode",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if os.path.exists(self.PATH_WEBSITE['path']):
             file_values = subprocess.check_output(f"sudo cat {self.PATH_WEBSITE['path']}", shell=True).decode('utf-8')
             id_paragraphe = file_values.find('#static IP')
@@ -912,15 +987,17 @@ class SmartphonePage(Picture):
         return None
     
     def display(self):
-        logging.info("SmartphonePage.display(): display SmartphonePage")
+        self.class_logger.info("display SmartphonePage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         self.get_website_QRCode()
         super().display()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
     
     def navigate(self, direction):
+        self.class_logger.info(f"execute '{self.action.__name__}'",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().navigate(direction)
-        logging.info(f"SmartphonePage.navigate({direction}): execute '{self.action.__name__}'")
         self.action()
         return None
 
@@ -930,8 +1007,10 @@ class SmartphonePage(Picture):
 #       router ssid and passphrase for internet access on wifi mode
 # TODO: Make a setting to check updates, only on wifi mode
 class SettingPage(Menu):
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, config, callbacks, general_config):
-        logging.info("SettingPage.__init__(): initialise MainMenuPage")
+        self.class_logger.info("initialise MainMenuPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         
         # Associate general high level attribute to 'self'
         for key, value in general_config.items():
@@ -966,23 +1045,27 @@ class SettingPage(Menu):
         return None
     
     def display(self):
-        logging.info("SettingPage.display(): display MainMenuPage")
+        self.class_logger.info("display MainMenuPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
     
     def navigate(self, direction):
+        self.class_logger.info(f"execute '{self.action.__name__}'",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().navigate(direction)
-        logging.info(f"SettingPage.navigate({direction}): execute '{self.action.__name__}'")
         self.action()
         return None
 
 
 # TODO: Create class BatteryPage() to handle battery information display
 class BatteryPage(Info):
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, config, callbacks, general_config):
-        logging.info("BatteryPage.__init__(): initialise BatteryPage")
+        self.class_logger.info("initialise BatteryPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         
         # Associate general high level attribute to 'self'
         for key, value in general_config.items():
@@ -1001,7 +1084,8 @@ class BatteryPage(Info):
         return None
     
     def display(self):
-        logging.info("BatteryPage.display(): display BatteryPage")
+        self.class_logger.info("display BatteryPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
         
@@ -1018,15 +1102,18 @@ class BatteryPage(Info):
         return None
     
     def navigate(self, direction):
+        self.class_logger.info(f"execute '{self.action.__name__}'",
+                                extra={'className':f"{self.__class__.__name__}:"})
         super().navigate(direction)
-        logging.info(f"BatteryPage.navigate({direction}): execute '{self.action.__name__}'")
         self.action()
         return None
 
 
 class PageManager:
+    class_logger = logging.getLogger('classLogger')
     def __init__(self, UI_config_path, general_config):
-        logging.info("PageManager.__init__(): initialise PageManager")
+        self.class_logger.info("initialise PageManager",
+                                extra={'className':f"{self.__class__.__name__}:"})
         self._general_config = general_config
         self.QUIT = False
         
@@ -1066,13 +1153,15 @@ class PageManager:
         return None
     
     def load_pages(self):
-        logging.info("PageManager.load_page(): generate pages based on config file")
+        self.class_logger.info("generate pages based on config file",
+                                extra={'className':f"{self.__class__.__name__}:"})
         for page_key, page_data in self.pages_structure.items():
             self.pages[page_key] = self.class_dict[page_data["class"]](page_data, self.callbacks, self._general_config)
         return None
     
     def show_page(self, page_key=None):
-        logging.info("PageManager.show_page(): keep track of page history")
+        self.class_logger.info("keep track of page history",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if self.current_page:
             self.page_stack.append(self.current_page)
         
@@ -1081,100 +1170,15 @@ class PageManager:
         return None
     
     def go_back(self):
-        logging.info("PageManager.go_back(): move to previous history page")
+        self.class_logger.info("move to previous history page",
+                                extra={'className':f"{self.__class__.__name__}:"})
         if self.page_stack:
             self.current_page = self.page_stack.pop()
             self.current_page.display()
         return None
     
     def shutdown(self):
-        logging.info("PageManager.shutdown(): shutdown PageManager")
+        self.class_logger.info("shutdown PageManager",
+                                extra={'className':f"{self.__class__.__name__}:"})
         self.QUIT = True
-        return
-
-
-class MainApp:
-    def __init__(self, UI_config_path):
-        
-        # read config_general.json file to initialise parameters
-        with open(PATH_GENERAL_CONFIG, 'r') as f:
-            self.general_config =  json.load(f)
-        
-        # Set default path for assets, fonts, wifi and website
-        self._general_config = {key:path for key, path in self.general_config["paths"].items()}
-        
-        # Set default icon for bad icon request
-        self._general_config['default_icon'] = Image.open(f"{self._general_config['PATH_ASSETS']}Icon_Empty.png")
-        
-        # Set fonts dictionary
-        self._general_config['FONTS'] = {key: ImageFont.truetype(self._general_config['PATH_FONTS'] + data['path'], data['size']) for key, data in self.general_config["fonts"].items()}
-        
-        # Set battery icon dictionary
-        self._general_config['BATTERY_DICT'] = {data: f"{self._general_config['PATH_ASSETS']}{key}" for key, data in self.general_config["battery_icons"].items()}
-        
-        # Initialise LCD class
-        self._general_config['LCD'] = LCD_1inch47.LCD_1inch47(**self.general_config["display"])
-        
-        
-        self.page_manager = PageManager(UI_config_path, self._general_config)
-        self.page_manager.show_page("main_menu_page")#"setting_page")#
-        
-        if RUN_ON_RPi:
-            self.general_config['GPIO_5_way_switch'] = {value:key for key, value in self.general_config['GPIO_5_way_switch'].items()}
-            for pin in self.general_config['GPIO_5_way_switch'].keys():
-                GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-                GPIO.add_event_detect(pin, GPIO.FALLING, callback=self.on_press)
-        else:
-            self.listener = keyboard.Listener(on_press=self.on_press)
-            self.listener.start()
         return None
-    
-    def on_press(self, key_name):
-        key = self.general_config['GPIO_5_way_switch'][key_name] if RUN_ON_RPi else key_name.name
-        try:
-            if self.page_manager.current_page._config['class'] == "MainMenuPage":
-                if key == "left":
-                    if self.page_manager.current_page:
-                        self.page_manager.page_stack.append(self.page_manager.current_page)
-                    self.page_manager.current_page = self.page_manager.pages["shutdown_page"]
-                    self.page_manager.current_page.display()
-                    return None
-            self.page_manager.current_page.navigate(key)
-        except AttributeError:
-            pass
-        return None
-    
-    def run(self):
-        logging.info("MainApp(class):run(): Running the MainApp(class)")
-        while not self.page_manager.QUIT:
-            continue
-        
-        return None
-    
-    def clean_stop(self):
-        logging.info("MainApp(class):clean_stop(): Cleanning MainApp(class)")
-        self.page_manager.current_page.LCD.ClearScreen()
-        if RUN_ON_RPi:
-            GPIO.cleanup()
-        else:
-            self.listener.stop()
-        return None
-
-
-if __name__ == '__main__':
-    SCRIPT_NAME = __file__.split('/')[-1]
-    print(__file__)
-    try:
-        
-        Intervallometer_V5_app = MainApp("config_UI_struct.json")
-        Intervallometer_V5_app.run()
-        
-        logging.info(f"{SCRIPT_NAME}: Add shutdown script call")
-        Intervallometer_V5_app.clean_stop()
-        
-    except KeyError:
-        logging.info(f"{SCRIPT_NAME}: KeyError")
-        Intervallometer_V5_app.clean_stop()
-    except KeyboardInterrupt:
-        logging.info(f"{SCRIPT_NAME}: KeyboardInterrupt")
-        Intervallometer_V5_app.clean_stop()
