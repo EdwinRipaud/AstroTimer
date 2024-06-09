@@ -37,13 +37,6 @@ app_logger = logging.getLogger('appLogger')
 app_logger.info("New execution of the AstroTimer program")
 
 
-# TODO: add night vision mode to LCD with this code:
-#   black_img = Image.new(mode="RGB", size=self.LCD.size[::-1], color=(0)).split()[0]
-#   alpha_img = Image.new(mode="RGB", size=self.LCD.size[::-1], color=(255)).split()[0]
-#   red_frame = Image.merge('RGBA', (self.LCD.screen_img.split()[0], black_img, black_img, alpha_img))
-#   self.LCD.screen_img = Image.blend(self.LCD.screen_img, red_frame, alpha=0.6)
-
-
 class MainApp:
     class_logger = logging.getLogger('classLogger')
     def __init__(self, UI_config_path):
@@ -127,8 +120,8 @@ if __name__ == '__main__':
         app_logger.debug("Quit App")
         Intervallometer_V5_app.clean_stop()
         
-    except KeyError:
-        app_logger.error("KeyError")
+    except KeyError as e:
+        app_logger.error(f"KeyError: {e}")
         Intervallometer_V5_app.clean_stop()
     except KeyboardInterrupt:
         app_logger.warning("KeyboardInterrupt")

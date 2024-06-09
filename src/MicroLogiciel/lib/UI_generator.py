@@ -739,6 +739,10 @@ class ShutdownPage(Button):
         return None
 
 
+# TODO: Create a temporary exchange file befor calling SequenceRunningPage
+#       This file will contain : sequence parameters + launch date
+# TODO: When sequence is paused by sequenceRunningPage, the class need to check
+#       the sequence_finish boolean to let 'continue' button appear or not
 class SequenceParameterPage(Parameter, Button):
     class_logger = logging.getLogger('classLogger')
     def __init__(self, config, callbacks, general_config):
@@ -880,6 +884,33 @@ class SequenceParameterPage(Parameter, Button):
         super().display()
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+        return None
+
+
+# TODO: Read the temporary exchange file to get the sequence parameters
+# PODO: Print current sequence informations such as : remaning time, remaning
+#       pictures, current exposed time
+# TODO: Make a python Trigger script
+class SequenceRunningPage(Button):
+    class_logger = logging.getLogger('classLogger')
+    def __init__(self, config, callbacks, general_config):
+        self.class_logger.info("initialise SequenceRunningPage",
+                                extra={'className':f"{self.__class__.__name__}:"})
+        
+        # Associate general high level attribute to 'self'
+        for key, value in general_config.items():
+            setattr(self, key, value)
+        
+        super().__init__(config)
+        self._config = config
+        
+        # Set callbacks for navigation keys
+        self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
+        
+        # Set callbacks for navigation
+        self.page_callbacks = {**callbacks["page_callbacks"]}
+        
+        self.action = lambda: None
         return None
 
 
@@ -1130,6 +1161,7 @@ class PageManager:
             "ComingSoonPage"        : ComingSoonPage,
             "ShutdownPage"          : ShutdownPage,
             "SequenceParameterPage" : SequenceParameterPage,
+            "SequenceRunningPage"   : SequenceRunningPage,
             "SettingPage"           : SettingPage,
             "WifiPage"              : WifiPage,
             "SmartphonePage"        : SmartphonePage,

@@ -93,7 +93,7 @@
             "options" : [
                 {
                     "name"     : "Run",
-                    "action"   : "shutdown_page",
+                    "action"   : "sequence_running_page",
                     "position" : [280, 145]
                 }
             ]
@@ -117,6 +117,26 @@
                     "unit"  : "s",
                     "value" : 2.5,
                     "step"  : 0.5
+                }
+            ]
+        }
+    },
+    "sequence_running_page" : {
+        "title" : "Running sequence",
+        "class" : "SequenceRunningPage",
+        "keys" : {
+            "enter" : "select",
+            "up"    : "up",
+            "down"  : "down",
+            "left"  : "go_back",
+            "right" : ""
+        },
+        "buttons" : {
+            "options" : [
+                {
+                    "name"     : "pause",
+                    "action"   : "sequence_parameter_page",
+                    "position" : [280, 145]
                 }
             ]
         }
