@@ -12,7 +12,7 @@ import logging
 import logging.config
 from PIL import Image, ImageFont
 
-from lib import LCD_1inch47
+from lib import LCD_display
 from lib.UI_generator import PageManager
 
 abspath = os.path.abspath(__file__)
@@ -25,10 +25,8 @@ RUN_ON_RPi = (OPERATING_SYSTEM.sysname == 'Linux') and (OPERATING_SYSTEM.machine
 if RUN_ON_RPi:
     import RPi.GPIO as GPIO
     GPIO.setmode(GPIO.BCM)
-    BYPASS_BUILTIN_SCREEN = False
 else:
     from pynput import keyboard
-    BYPASS_BUILTIN_SCREEN = True
 
 PATH_GENERAL_CONFIG = 'config_general.json'
 
@@ -59,10 +57,10 @@ class MainApp:
         self._general_config['BATTERY_DICT'] = {data: f"{self._general_config['PATH_ASSETS']}{key}" for key, data in self.general_config["battery_icons"].items()}
         
         # Initialise LCD class
-        self._general_config['LCD'] = LCD_1inch47.LCD_1inch47(**self.general_config["display"])
+        self._general_config['LCD'] = LCD_display.LCD_1inch47(**self.general_config["display"])
         
         self.page_manager = PageManager(UI_config_path, self._general_config)
-        self.page_manager.show_page("main_menu_page")#"setting_page")#
+        self.page_manager.show_page("sequence_parameter_page")#"main_menu_page")#
         
         if RUN_ON_RPi:
             self.general_config['GPIO_5_way_switch'] = {value:key for key, value in self.general_config['GPIO_5_way_switch'].items()}

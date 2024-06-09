@@ -101,7 +101,7 @@
         "parameters" : {
             "options" : [
                 {
-                    "name"  : "Shot",
+                    "name"  : "Shots",
                     "unit"  : "",
                     "value" : 10,
                     "step"  : 5
