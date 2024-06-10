@@ -8,6 +8,7 @@ Created on Sat Jun  8 11:31:48 2024
 
 import os
 import json
+import time
 import qrcode
 import logging
 import logging.config
@@ -397,12 +398,14 @@ class Parameter(Page):
     def navigate(self, direction):
         self.class_logger.info("navigate in the parameters",
                                extra={'className':f"{self.__class__.__name__}:"})
-        if direction in self.keys.keys():
+        try:
             if self.keys[direction] not in ['', 'none']:
                 if type(self.keys_callbacks[self.keys[direction]]) is list:
                     self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
                 else:
                     self.action = self.keys_callbacks[self.keys[direction]]
+        except KeyError as e:
+            self.class_logger.error(f"KeyError: {e}")
         return None
     
     def display(self):
@@ -782,9 +785,8 @@ class SequenceParameterPage(Parameter, Button):
         # Set callbacks for navigation keys
         self.keys_callbacks = {
             **self.keys_callbacks,
-            'select' : self.parameter_select,
-            'back' : [callbacks["keys_callbacks"]['go_back'], self.parameter_select],
-            'run' : [self.parameter_select, lambda:print("Run function not implemented yet!")],
+            'select' : {'button':self.run_sequence, 'parameter':self.parameter_select},
+            'back' : {'button':callbacks["keys_callbacks"]['go_back'], 'parameter':self.parameter_select},
             'up' : self.option_up,
             'down' : self.option_down,
             **callbacks["keys_callbacks"],
@@ -800,8 +802,10 @@ class SequenceParameterPage(Parameter, Button):
             *['button']*len(self.button_options)
             ]
         self.options_callbacks = {
-            'parameter' : {'up': self.keys_callbacks['parameter_up'], 'down': self.keys_callbacks['parameter_down']},
-            'button' : {'up': self.keys_callbacks['button_up'], 'down': self.keys_callbacks['button_down']}
+            'parameter' : {'up': self.keys_callbacks['parameter_up'],
+                           'down': self.keys_callbacks['parameter_down']},
+            'button' : {'up': self.keys_callbacks['button_up'],
+                        'down': self.keys_callbacks['button_down']}
             }
         self.current_option = 0
         self.activate_options()
@@ -825,7 +829,6 @@ class SequenceParameterPage(Parameter, Button):
         self.class_logger.info("handle selection action",
                                extra={'className':f"{self.__class__.__name__}:"})
         action = self.button_options[self.current_button]['action']
-        
         if action in self.page_callbacks.keys():
             self.class_logger.debug("action '{action}'",
                                     extra={'className':f"{self.__class__.__name__}:"})
@@ -863,21 +866,32 @@ class SequenceParameterPage(Parameter, Button):
         self.action()
         return None
     
+    def run_sequence(self):
+        self.class_logger.info("write parameters for SequenceRunningPage",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        
+        parameters = {"sequence_parameters":{param['name']:param['value'] for param in self.parameter_options},
+                      "start_time":time.time()}
+        with open("../tmp/sequence_parameters.tmp", 'w') as f:
+            json.dump(parameters, f)
+        
+        action = "sequence_running_page"
+        self.page_callbacks[action](action)
+        return None
+    
     def navigate(self, direction):
         self.class_logger.info(f"navigate '{direction}' into sequence parameter page options",
                                extra={'className':f"{self.__class__.__name__}:"})
-        if direction in self.keys.keys():
-            print("\n", self.keys_callbacks[self.keys[direction]].__name__, "\n")
-            if direction == 'left':
-                self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
-            elif self.keys[direction] not in ['', 'none']:
-                if type(self.keys_callbacks[self.keys[direction]]) is list:
-                    self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
-                else:
-                    self.action = self.keys_callbacks[self.keys[direction]]
+        try:
+            if self.keys[direction] not in ['', 'none']:
+                self.action = self.keys_callbacks[self.keys[direction]]
+            if type(self.action) == dict:
+                self.action = self.action[self.options_list[self.current_option]]
             self.class_logger.debug(f"execute '{self.action.__name__}'",
                                     extra={'className':f"{self.__class__.__name__}:"})
             self.action()
+        except KeyError as e:
+            self.class_logger.error(f"KeyError: {e}")
         return None
     
     def display(self):
@@ -932,21 +946,8 @@ class SequenceRunningPage(Button):
     def navigate(self, direction):
         self.class_logger.info("navigate into sequence running page options",
                                extra={'className':f"{self.__class__.__name__}:"})
-        try:
-            if direction in self.keys.keys():
-                if direction == 'left':
-                    self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
-                elif self.keys[direction] not in ['', 'none']:
-                    if type(self.keys_callbacks[self.keys[direction]]) is list:
-                        self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
-                    else:
-                        self.action = self.keys_callbacks[self.keys[direction]]
-                self.class_logger.debug(f"execute '{self.action.__name__}'",
-                                        extra={'className':f"{self.__class__.__name__}:"})
-                self.action()
-        
-        except KeyError as e:
-            self.class_logger.error(f"KeyError: {e}")
+        super().navigate(direction)
+        self.action()
         return None
     
     def display(self):
@@ -955,6 +956,10 @@ class SequenceRunningPage(Button):
         super().display()
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+        
+        with open("../tmp/sequence_parameters.tmp", 'r') as f:
+            self.sequence_parameters = json.load(f)
+        print(self.sequence_parameters)
         return None
 
 

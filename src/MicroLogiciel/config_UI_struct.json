@@ -87,7 +87,7 @@
             "up"    : "up",
             "down"  : "down",
             "left"  : "back",
-            "right" : "run"
+            "right" : "select"
         },
         "buttons" : {
             "options" : [
