@@ -34,6 +34,9 @@ logging.config.fileConfig('logging.conf')
 app_logger = logging.getLogger('appLogger')
 app_logger.info("New execution of the AstroTimer program")
 
+# TODO: Add a settings for the loggings depth and max age
+# TODO: Check the log at init to delete older logs
+
 
 class MainApp:
     class_logger = logging.getLogger('classLogger')
@@ -94,7 +97,6 @@ class MainApp:
                                 extra={'className':f"{self.__class__.__name__}:"})
         while not self.page_manager.QUIT:
             continue
-        
         return None
     
     def clean_stop(self):
@@ -105,6 +107,9 @@ class MainApp:
             GPIO.cleanup()
         else:
             self.listener.stop()
+        tmp_file = self.page_manager.pages["sequence_running_page"].tmp_param_file
+        if os.path.isfile(tmp_file):
+            os.remove(tmp_file)
         return None
 
 

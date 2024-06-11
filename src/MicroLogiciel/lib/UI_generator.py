@@ -16,6 +16,8 @@ import subprocess
 import numpy as np
 from PIL import Image, ImageDraw
 
+import lib.Trigger as trigger
+
 OPERATING_SYSTEM = os.uname()
 RUN_ON_RPi = (OPERATING_SYSTEM.sysname == 'Linux') and (OPERATING_SYSTEM.machine in ['aarch64', 'armv6l'])
 
@@ -743,8 +745,6 @@ class ShutdownPage(Button):
         return None
 
 
-# TODO: Create a temporary exchange file befor calling SequenceRunningPage
-#       This file will contain : sequence parameters + launch date
 # TODO: When sequence is paused by sequenceRunningPage, the class need to check
 #       the sequence_finish boolean to let 'continue' button appear or not
 class SequenceParameterPage(Parameter, Button):
@@ -809,6 +809,8 @@ class SequenceParameterPage(Parameter, Button):
             }
         self.current_option = 0
         self.activate_options()
+        
+        self.tmp_param_file = "../tmp/sequence_parameters.tmp"
         return None
     
     def activate_options(self):
@@ -870,9 +872,13 @@ class SequenceParameterPage(Parameter, Button):
         self.class_logger.info("write parameters for SequenceRunningPage",
                                extra={'className':f"{self.__class__.__name__}:"})
         
-        parameters = {"sequence_parameters":{param['name']:param['value'] for param in self.parameter_options},
+        parameters = {"sequence_parameters":{param['name'].lower():{'value':param['value'], 'unit':param['unit']}
+                                             for param in self.parameter_options},
                       "start_time":time.time()}
-        with open("../tmp/sequence_parameters.tmp", 'w') as f:
+        # TODO: Get this parameter from settings_config.json
+        parameters['sequence_parameters']['offset'] = {'value':300, 'unit':'ms'}
+        
+        with open(self.tmp_param_file, 'w') as f:
             json.dump(parameters, f)
         
         action = "sequence_running_page"
@@ -903,10 +909,8 @@ class SequenceParameterPage(Parameter, Button):
         return None
 
 
-# TODO: Read the temporary exchange file to get the sequence parameters
-# PODO: Print current sequence informations such as : remaning time, remaning
-#       pictures, current exposed time
-# TODO: Make a python Trigger script
+# TODO: Make a loop for sequence update, with periode based on running sequence parameters
+# TODO: Add action to the 'pause' button to kill running sequence process and go back to parameters
 class SequenceRunningPage(Button):
     class_logger = logging.getLogger('classLogger')
     def __init__(self, config, callbacks, general_config):
@@ -941,6 +945,16 @@ class SequenceRunningPage(Button):
         self.page_callbacks = {**callbacks["page_callbacks"]}
         
         self.action = lambda: None
+        
+        self.tmp_param_file = "../tmp/sequence_parameters.tmp"
+            
+        return None
+    
+    def launch_sequence(self):
+        with open(self.tmp_param_file, 'r') as f:
+            self.sequence_parameters = json.load(f)
+        # TODO: Run the function in a fork, for non-blocking execution
+        trigger.run_sequence(**self.sequence_parameters['sequence_parameters'])
         return None
     
     def navigate(self, direction):
@@ -953,13 +967,26 @@ class SequenceRunningPage(Button):
     def display(self):
         self.class_logger.info("display SequenceRunningPage",
                                extra={'className':f"{self.__class__.__name__}:"})
-        super().display()
+        if os.path.isfile(self.tmp_param_file):
+            self.launch_sequence()
+            super().display()
+        else:
+            self.class_logger.warning("no temporary exchange file found...",
+                                      extra={'className':f"{self.__class__.__name__}:"})
+            self.LCD._reset_frame()
+            draw = ImageDraw.Draw(self.LCD.screen_img)
+            icon = Image.open(f"{self.PATH_ASSETS}Icon_Empty.png").resize((130, 130), Image.Resampling.NEAREST)
+            icon_pose = (int((self.LCD.size[1] - icon.size[0])/2),
+                         int((self.LCD.size[0] - icon.size[0]+34)/2 ))
+            self.LCD.screen_img.paste(icon, icon_pose)
+            
+            text_font = self.FONTS["PixelOperator_M"]
+            text_pose = (8, 40)
+            draw.text(text_pose, "Error 404:\n'../tmp/sequence_parameters.tmp'\nfile  not found !",
+                      fill=(255,255,255), font=text_font, align='center')
+        
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
-        
-        with open("../tmp/sequence_parameters.tmp", 'r') as f:
-            self.sequence_parameters = json.load(f)
-        print(self.sequence_parameters)
         return None
 
 
