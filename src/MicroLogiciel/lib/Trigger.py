@@ -26,6 +26,16 @@ PIN_FOCUS = 20
 
 UNIT_CONVERTER = {'s':1, 'ms':1e-3, 'us':1e-6}
 
+tmp_file = "../tmp/running_parameters.tmp"
+
+def keep_track(taken=-1, remaining=-1):
+    lib_logger.warning("Saving current parameters")
+    keep_track_dict = {"taken":taken, "remaining":remaining}
+    with open(tmp_file, 'w') as f:
+        json.dump(keep_track_dict, f)
+    return None
+
+
 if RUN_ON_RPi:
     import RPi.GPIO as GPIO
     GPIO.setmode(GPIO.BCM)
@@ -33,6 +43,7 @@ if RUN_ON_RPi:
     GPIO.setup(PIN_FOCUS, GPIO.OUT)
     
     def run_sequence(exposure:dict, shots:dict, interval:dict, offset:dict):
+        os.makedirs(os.path.dirname(tmp_file), exist_ok=True)
         try:
             offset_time = offset['value'] * UNIT_CONVERTER[offset['unit']]
             
@@ -48,6 +59,8 @@ if RUN_ON_RPi:
         
         lib_logger.info(f"Sequence parameters: exposure={exposure['value']}{exposure['unit']}, \
     shots={shots['value']}, interval={interval['value']}{interval['unit']}")
+    
+        keep_track(taken=0, remaining=nb_shots)
         
         # Wake-up the camera
         GPIO.output(PIN_FOCUS, GPIO.HIGH)
@@ -55,6 +68,7 @@ if RUN_ON_RPi:
         GPIO.output(PIN_FOCUS, GPIO.LOW)
         time.sleep(0.5*offset_time)
         
+        k=1
         for k in range(1, max(1, nb_shots)):
             lib_logger.info(f"Picture n°{k}/{nb_shots}")
             # Set pin high to take picture
@@ -64,6 +78,7 @@ if RUN_ON_RPi:
             # Set pin low to save the picture
             GPIO.output([PIN_FOCUS, PIN_SHUTTER],
                         [GPIO.LOW, GPIO.LOW])
+            keep_track(taken=k, remaining=nb_shots-k)
             lib_logger.debug("sleep")
             time.sleep(interval_time)
         
@@ -72,6 +87,12 @@ if RUN_ON_RPi:
         GPIO.output([PIN_FOCUS, PIN_SHUTTER],
                     [GPIO.HIGH, GPIO.HIGH])
         time.sleep(exposure_time)
+        # Leave pin low
+        GPIO.output([PIN_FOCUS, PIN_SHUTTER],
+                    [GPIO.LOW, GPIO.LOW])
+        keep_track(taken=k+1, remaining=0)
+        time.sleep(offset_time)
+        os.remove(tmp_file)
         return None
 else:
     lib_logger.warning("Cannot run on a non-RaspberryPi board")

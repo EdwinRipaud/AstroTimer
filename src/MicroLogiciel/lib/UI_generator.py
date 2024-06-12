@@ -33,6 +33,8 @@ logging.config.fileConfig('logging.conf')
 lib_logger = logging.getLogger('libLogger')
 lib_logger.debug("Imported file")
 
+UNIT_CONVERTER = {'s':1, 'ms':1e-3, 'us':1e-6}
+
 
 class Page:
     class_logger = logging.getLogger('classLogger')
@@ -785,7 +787,7 @@ class SequenceParameterPage(Parameter, Button):
         # Set callbacks for navigation keys
         self.keys_callbacks = {
             **self.keys_callbacks,
-            'select' : {'button':self.run_sequence, 'parameter':self.parameter_select},
+            'select' : {'button':self.launch_sequence, 'parameter':self.parameter_select},
             'back' : {'button':callbacks["keys_callbacks"]['go_back'], 'parameter':self.parameter_select},
             'up' : self.option_up,
             'down' : self.option_down,
@@ -868,7 +870,7 @@ class SequenceParameterPage(Parameter, Button):
         self.action()
         return None
     
-    def run_sequence(self):
+    def launch_sequence(self):
         self.class_logger.info("write parameters for SequenceRunningPage",
                                extra={'className':f"{self.__class__.__name__}:"})
         
@@ -878,6 +880,7 @@ class SequenceParameterPage(Parameter, Button):
         # TODO: Get this parameter from settings_config.json
         parameters['sequence_parameters']['offset'] = {'value':300, 'unit':'ms'}
         
+        os.makedirs(os.path.dirname(self.tmp_param_file), exist_ok=True)
         with open(self.tmp_param_file, 'w') as f:
             json.dump(parameters, f)
         
@@ -947,14 +950,29 @@ class SequenceRunningPage(Button):
         self.action = lambda: None
         
         self.tmp_param_file = "../tmp/sequence_parameters.tmp"
-            
+        
         return None
     
-    def launch_sequence(self):
+    def run_sequence(self):
+        self.class_logger.warning("Launch sequence",
+                               extra={'className':f"{self.__class__.__name__}:"})
         with open(self.tmp_param_file, 'r') as f:
             self.sequence_parameters = json.load(f)
         # TODO: Run the function in a fork, for non-blocking execution
-        trigger.run_sequence(**self.sequence_parameters['sequence_parameters'])
+        child_pid = os.fork()
+        if child_pid == 0:
+            trigger.run_sequence(**self.sequence_parameters['sequence_parameters'])
+            self.class_logger.warning("end sequence",
+                                   extra={'className':f"{self.__class__.__name__}:"})
+            os.kill(os.getpid(), 9)
+        else:
+            offset = self.sequence_parameters['sequence_parameters']['offset']
+            time.sleep(offset['value'] * UNIT_CONVERTER[offset['unit']])
+            while os.path.isfile("../tmp/running_parameters.tmp"):
+                # TODO: call a displaying function to draw current advence of the sequence
+                time.sleep(0.5)
+            self.action = self.keys_callbacks['go_back']
+            self.action()
         return None
     
     def navigate(self, direction):
@@ -967,9 +985,9 @@ class SequenceRunningPage(Button):
     def display(self):
         self.class_logger.info("display SequenceRunningPage",
                                extra={'className':f"{self.__class__.__name__}:"})
+        super().display()
         if os.path.isfile(self.tmp_param_file):
-            self.launch_sequence()
-            super().display()
+            self.run_sequence()
         else:
             self.class_logger.warning("no temporary exchange file found...",
                                       extra={'className':f"{self.__class__.__name__}:"})
@@ -985,8 +1003,8 @@ class SequenceRunningPage(Button):
             draw.text(text_pose, "Error 404:\n'../tmp/sequence_parameters.tmp'\nfile  not found !",
                       fill=(255,255,255), font=text_font, align='center')
         
-        self._draw_status_bar()
-        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+            self._draw_status_bar()
+            self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
 
 
