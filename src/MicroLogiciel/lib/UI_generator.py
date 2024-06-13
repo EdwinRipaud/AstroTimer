@@ -787,8 +787,9 @@ class SequenceParameterPage(Parameter, Button):
         # Set callbacks for navigation keys
         self.keys_callbacks = {
             **self.keys_callbacks,
-            'select' : {'button':self.launch_sequence, 'parameter':self.parameter_select},
-            'back' : {'button':callbacks["keys_callbacks"]['go_back'], 'parameter':self.parameter_select},
+            'select' : {'button':self.launch_sequence,
+                        'parameter':self.parameter_select},
+            'back' : self.option_back, #{'button':callbacks["keys_callbacks"]['go_back'], 'parameter':self.parameter_select},
             'up' : self.option_up,
             'down' : self.option_down,
             **callbacks["keys_callbacks"],
@@ -844,6 +845,15 @@ class SequenceParameterPage(Parameter, Button):
         else:
             self.class_logger.debug("no action to trigger",
                                     extra={'className':f"{self.__class__.__name__}:"})
+        return None
+    
+    def option_back(self):
+        option = self.options_list[self.current_option]
+        print(option, self.parameter_active)
+        if option == 'parameter' and self.parameter_seleceted:
+            self.parameter_select()
+        else:
+            self.keys_callbacks['go_back']()
         return None
     
     def option_up(self):
@@ -966,11 +976,16 @@ class SequenceRunningPage(Button):
                                    extra={'className':f"{self.__class__.__name__}:"})
             os.kill(os.getpid(), 9)
         else:
-            offset = self.sequence_parameters['sequence_parameters']['offset']
-            time.sleep(offset['value'] * UNIT_CONVERTER[offset['unit']])
+            parameters = self.sequence_parameters['sequence_parameters']
+            offset = parameters['offset']['value'] * UNIT_CONVERTER[parameters['offset']['unit']]
+            exposure = parameters['exposure']['value'] * UNIT_CONVERTER[parameters['exposure']['unit']]
+            interval = parameters['interval']['value'] * UNIT_CONVERTER[parameters['interval']['unit']]
+            pause = exposure + interval + offset
+            time.sleep(offset)
             while os.path.isfile("../tmp/running_parameters.tmp"):
                 # TODO: call a displaying function to draw current advence of the sequence
-                time.sleep(0.5)
+                self.display_running()
+                time.sleep(pause)
             self.action = self.keys_callbacks['go_back']
             self.action()
         return None
@@ -982,8 +997,24 @@ class SequenceRunningPage(Button):
         self.action()
         return None
     
+    def display_running(self):
+        self.class_logger.warning("display screenn while running",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().display()
+        draw = ImageDraw.Draw(self.LCD.screen_img)
+        
+        # TODO: Read "../tmp/running_parameters.tmp" and updates screen parameters
+        text_font = self.FONTS["PixelOperator_L"]
+        text_pose = (8, 40)
+        draw.text(text_pose, "TODO: update\ncurrent parameters",
+                  fill=(255,255,255), font=text_font, align='center')
+    
+        self._draw_status_bar()
+        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+        return None
+    
     def display(self):
-        self.class_logger.info("display SequenceRunningPage",
+        self.class_logger.warning("display SequenceRunningPage",
                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
         if os.path.isfile(self.tmp_param_file):
