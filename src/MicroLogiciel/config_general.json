@@ -22,7 +22,7 @@
         "rst"       : 27,
         "dc"        : 25,
         "bl"        : 18,
-        "bl_freq"   : 90
+        "bl_freq"   : 500
     },
     "battery_icons": {
         "Icon_battery_90.png" : 90,

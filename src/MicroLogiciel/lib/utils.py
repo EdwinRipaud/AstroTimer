@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sun Jun  9 11:17:20 2024
+Created on Sat Jun 15 14:33:31 2024
 
 @author: Er-berry
 """
 
 import os
+import re
 import time
 import json
 import logging
@@ -29,11 +30,65 @@ UNIT_CONVERTER = {'s':1, 'ms':1e-3, 'us':1e-6}
 tmp_file = "../tmp/running_parameters.tmp"
 
 def keep_track(taken=-1, remaining=-1):
-    lib_logger.warning("Saving current parameters")
+    lib_logger.info("Saving current parameters")
     keep_track_dict = {"taken":taken, "remaining":remaining}
     with open(tmp_file, 'w') as f:
         json.dump(keep_track_dict, f)
     return None
+
+def _check_pattern(fmt, unit):
+    patterns = [f'({unit})', f'({unit}{unit})', f'(*{unit})', f'(*{unit}{unit})']
+    return any([pattern in fmt for pattern in patterns])
+
+def time2str(seconds:float, fmt='(hh):(mm):(ss)'):
+    """
+    Generate a time formated string of the input timedelta
+
+    Parameters
+    ----------
+    seconds : float
+        Timedelta in seconds
+    fmt : TYPE, optional
+        Output string format type description.
+            Example for seconds=5025.678
+                 '(h):(m):(ss)' -> '1:23:45'
+                 
+                 '(hh)h (mm)min (ss)s' -> '01h 23min 45s'
+                 
+                 '(*hh)h (mm)min (ss.S)s' -> '1h 23min 45.678s'
+            Example for seconds=78.9
+                 '(h):(m):(ss)' -> '0:1:28.900'
+                 
+                 '(hh)h (mm)min (ss)s' -> '00h 01min 29s'
+                 
+                 '(*hh)h (mm)min (ss.S)s' -> '01min 28.900s'
+        The default is '(hh):(mm):(ss)'.
+
+    Returns
+    -------
+    out : TYPE
+        DESCRIPTION.
+
+    """
+    time_dict = {
+        'h': seconds//3600,
+        'm': seconds%3600//60 if _check_pattern(fmt, 'h') else seconds//60,
+        's': (seconds%60)%60 if _check_pattern(fmt, 'm') else seconds,
+    }
+    
+    out = ''
+    for frmt in fmt.split('(')[1:]:
+        unit, separator = frmt.split(')')
+        
+        n = re.findall('h|m|s', unit)
+        t = time_dict[n[0]]
+        if n:
+            if not unit.find('*')>=0 or t!=0:
+                leading = len(n) if len(n)<=2 else 5
+                trailing = 0 if len(n)<=2 else 3
+                out += f"{t:0{leading}.{trailing}f}{separator}"
+    lib_logger.debug(f"({seconds}, {fmt}) -> {out}")
+    return out
 
 
 if RUN_ON_RPi:
@@ -42,7 +97,7 @@ if RUN_ON_RPi:
     GPIO.setup(PIN_SHUTTER, GPIO.OUT)
     GPIO.setup(PIN_FOCUS, GPIO.OUT)
     
-    def run_sequence(exposure:dict, shots:dict, interval:dict, offset:dict):
+    def execute_sequence(exposure:dict, shots:dict, interval:dict, offset:dict):
         os.makedirs(os.path.dirname(tmp_file), exist_ok=True)
         try:
             offset_time = offset['value'] * UNIT_CONVERTER[offset['unit']]
@@ -58,7 +113,7 @@ if RUN_ON_RPi:
             return None
         
         lib_logger.info(f"Sequence parameters: exposure={exposure['value']}{exposure['unit']}, \
-    shots={shots['value']}, interval={interval['value']}{interval['unit']}")
+shots={shots['value']}, interval={interval['value']}{interval['unit']}")
     
         keep_track(taken=0, remaining=nb_shots)
         
@@ -90,26 +145,11 @@ if RUN_ON_RPi:
         # Leave pin low
         GPIO.output([PIN_FOCUS, PIN_SHUTTER],
                     [GPIO.LOW, GPIO.LOW])
-        keep_track(taken=k+1, remaining=0)
-        time.sleep(offset_time)
         os.remove(tmp_file)
+        time.sleep(offset_time)
         return None
 else:
     lib_logger.warning("Cannot run on a non-RaspberryPi board")
     def run_sequence(exposure:dict, shots:dict, interval:dict, offset:dict):
         lib_logger.error("Impossible to call run_sequence")
         return None
-
-
-if __name__ == '__main__':
-    tmp_param_file = "../tmp/sequence_parameters.tmp"
-    if RUN_ON_RPi and os.path.isfile(tmp_param_file):
-        lib_logger.info("Execute a sequence")
-        with open(tmp_param_file, 'r') as f:
-            sequence = json.load(f)
-        
-        run_sequence(**sequence['sequence_parameters'])
-        
-        GPIO.cleanup()
-    else:
-        lib_logger.warning("Nothing to do...")

@@ -16,7 +16,7 @@ import subprocess
 import numpy as np
 from PIL import Image, ImageDraw
 
-import lib.Trigger as trigger
+import lib.utils as utils
 
 OPERATING_SYSTEM = os.uname()
 RUN_ON_RPi = (OPERATING_SYSTEM.sysname == 'Linux') and (OPERATING_SYSTEM.machine in ['aarch64', 'armv6l'])
@@ -884,12 +884,21 @@ class SequenceParameterPage(Parameter, Button):
         self.class_logger.info("write parameters for SequenceRunningPage",
                                extra={'className':f"{self.__class__.__name__}:"})
         
-        parameters = {"sequence_parameters":{param['name'].lower():{'value':param['value'], 'unit':param['unit']}
-                                             for param in self.parameter_options},
-                      "start_time":time.time()}
-        # TODO: Get this parameter from settings_config.json
-        parameters['sequence_parameters']['offset'] = {'value':300, 'unit':'ms'}
+        seq_param = {param['name'].lower():{'value':param['value'], 'unit':param['unit']} for param in self.parameter_options}
+        seq_param['offset'] = {'value':300, 'unit':'ms'}  # TODO: Get this parameter from settings_config.json
         
+        shots = seq_param['shots']['value']
+        offset = seq_param['offset']['value'] * UNIT_CONVERTER[seq_param['offset']['unit']]
+        exposure = seq_param['exposure']['value'] * UNIT_CONVERTER[seq_param['exposure']['unit']]
+        interval = seq_param['interval']['value'] * UNIT_CONVERTER[seq_param['interval']['unit']]
+        running_time = shots * (offset+exposure) + (shots-1) * interval
+        
+        start_time = time.time()
+        end_time = start_time + running_time + 2*offset + 0.1
+        time_param = {"start":start_time, "end":end_time}
+        
+        parameters = {"sequence_parameters":seq_param,
+                      "sequence_time":time_param}
         os.makedirs(os.path.dirname(self.tmp_param_file), exist_ok=True)
         with open(self.tmp_param_file, 'w') as f:
             json.dump(parameters, f)
@@ -964,28 +973,35 @@ class SequenceRunningPage(Button):
         return None
     
     def run_sequence(self):
-        self.class_logger.warning("Launch sequence",
+        self.class_logger.info("Launch sequence",
                                extra={'className':f"{self.__class__.__name__}:"})
         with open(self.tmp_param_file, 'r') as f:
             self.sequence_parameters = json.load(f)
-        # TODO: Run the function in a fork, for non-blocking execution
+        self._nb_shots = self.sequence_parameters['sequence_parameters']['shots']['value']
+        self._exposure = self.sequence_parameters['sequence_parameters']['exposure']
+        self._time_exp = self._exposure['value'] * UNIT_CONVERTER[self._exposure['unit']]
+        self._offset = self.sequence_parameters['sequence_parameters']['offset']
+        self._time_off = self._offset['value'] * UNIT_CONVERTER[self._offset['unit']]
+        self._interval = self.sequence_parameters['sequence_parameters']['interval']
+        self._time_int = self._interval['value'] * UNIT_CONVERTER[self._interval['unit']]
+        self._start_time = self.sequence_parameters['sequence_time']['start']
+        self._end_time = self.sequence_parameters['sequence_time']['end']
+        
         child_pid = os.fork()
         if child_pid == 0:
-            trigger.run_sequence(**self.sequence_parameters['sequence_parameters'])
-            self.class_logger.warning("end sequence",
+            utils.execute_sequence(**self.sequence_parameters['sequence_parameters'])
+            self.class_logger.info("end sequence",
                                    extra={'className':f"{self.__class__.__name__}:"})
+            self.class_logger.debug(f"End time error (estimated-real): {self._end_time-time.time()}s",
+                                    extra={'className':f"{self.__class__.__name__}:"})
             os.kill(os.getpid(), 9)
         else:
-            parameters = self.sequence_parameters['sequence_parameters']
-            offset = parameters['offset']['value'] * UNIT_CONVERTER[parameters['offset']['unit']]
-            exposure = parameters['exposure']['value'] * UNIT_CONVERTER[parameters['exposure']['unit']]
-            interval = parameters['interval']['value'] * UNIT_CONVERTER[parameters['interval']['unit']]
-            pause = exposure + interval + offset
-            time.sleep(offset)
+            time.sleep(0.25)
             while os.path.isfile("../tmp/running_parameters.tmp"):
-                # TODO: call a displaying function to draw current advence of the sequence
-                self.display_running()
-                time.sleep(pause)
+                if self.display_running():
+                    break
+                else:
+                    time.sleep(0.25)
             self.action = self.keys_callbacks['go_back']
             self.action()
         return None
@@ -998,16 +1014,34 @@ class SequenceRunningPage(Button):
         return None
     
     def display_running(self):
-        self.class_logger.warning("display screenn while running",
+        self.class_logger.info("display screen while running",
                                extra={'className':f"{self.__class__.__name__}:"})
-        super().display()
-        draw = ImageDraw.Draw(self.LCD.screen_img)
+        try:
+            with open("../tmp/running_parameters.tmp", 'r') as f:
+                running_track = json.load(f)
+        except FileNotFoundError as e:
+            self.class_logger.warning(f"File not found: {e}",
+                                      extra={'className':f"{self.__class__.__name__}:"})
+            return True
         
-        # TODO: Read "../tmp/running_parameters.tmp" and updates screen parameters
-        text_font = self.FONTS["PixelOperator_L"]
-        text_pose = (8, 40)
-        draw.text(text_pose, "TODO: update\ncurrent parameters",
-                  fill=(255,255,255), font=text_font, align='center')
+        super().display()
+        fill = (255,255,255)
+        text_font = self.FONTS["PixelOperator_M"]
+        number_font = self.FONTS["PixelOperatorBold_M"]
+        draw = ImageDraw.Draw(self.LCD.screen_img)
+        # Current shot traking
+        taken = running_track['taken']+1
+        draw.text((12, 50), "Shot:", fill=fill, font=text_font, anchor='lm', align='center')
+        draw.text((110, 50), f"{taken}/{self._nb_shots}", fill=fill, font=number_font, anchor='lm', align='center')
+        # Exposed time tracking
+        time_exposed = utils.time2str(seconds=running_track['taken']*self._time_exp, fmt='(s)s')
+        draw.text((12, 75), "Exposure:", fill=fill, font=text_font, anchor='lm', align='center')
+        draw.text((110, 75), f"{time_exposed}", fill=fill, font=number_font, anchor='lm', align='center')
+        # Time left tracking
+        draw.text((12, 110), "Time left:", fill=fill, font=text_font, anchor='lm', align='center')
+        time_left = utils.time2str(seconds=self._end_time-time.time(), fmt='(*h)h (*m)min (s)s')
+        draw.text((int(self.LCD.height/2), 140), f"{time_left}",
+                  fill=(255,255,255), font=self.FONTS["PixelOperatorBold_L"], anchor='mm', align='center')
     
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)

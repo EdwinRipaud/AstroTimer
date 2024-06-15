@@ -103,19 +103,19 @@
                 {
                     "name"  : "Shots",
                     "unit"  : "",
-                    "value" : 3,
+                    "value" : 5,
                     "step"  : 1
                 },
                 {
                     "name"  : "Exposure",
                     "unit"  : "s",
-                    "value" : 2,
+                    "value" : 1,
                     "step"  : 1
                 },
                 {
                     "name"  : "Interval",
                     "unit"  : "s",
-                    "value" : 1.5,
+                    "value" : 0.5,
                     "step"  : 0.5
                 }
             ]
@@ -136,7 +136,7 @@
                 {
                     "name"     : "pause",
                     "action"   : "sequence_parameter_page",
-                    "position" : [280, 145]
+                    "position" : [275, 55]
                 }
             ]
         }
