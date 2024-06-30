@@ -12,6 +12,7 @@ import time
 import json
 import logging
 import logging.config
+import filelock
 
 OPERATING_SYSTEM = os.uname()
 RUN_ON_RPi = (OPERATING_SYSTEM.sysname == 'Linux') and (OPERATING_SYSTEM.machine in ['aarch64', 'armv6l'])
@@ -28,12 +29,15 @@ PIN_FOCUS = 20
 UNIT_CONVERTER = {'s':1, 'ms':1e-3, 'us':1e-6}
 
 tmp_file = "../tmp/running_parameters.tmp"
+tmp_locker = "../tmp/tmp.lock"
+lock = filelock.FileLock(tmp_locker)
 
 def keep_track(taken=-1, remaining=-1):
     lib_logger.info("Saving current parameters")
     keep_track_dict = {"taken":taken, "remaining":remaining}
-    with open(tmp_file, 'w') as f:
-        json.dump(keep_track_dict, f)
+    with lock:
+        with open(tmp_file, 'w') as f:
+            json.dump(keep_track_dict, f)
     return None
 
 def _check_pattern(fmt, unit):
@@ -97,7 +101,11 @@ if RUN_ON_RPi:
     GPIO.setup(PIN_SHUTTER, GPIO.OUT)
     GPIO.setup(PIN_FOCUS, GPIO.OUT)
     
-    def execute_sequence(exposure:dict, shots:dict, interval:dict, offset:dict):
+    def execute_sequence(arguments:dict):
+        exposure = arguments['exposure']
+        shots = arguments['shots']
+        interval = arguments['interval']
+        offset = arguments['offset']
         os.makedirs(os.path.dirname(tmp_file), exist_ok=True)
         try:
             offset_time = offset['value'] * UNIT_CONVERTER[offset['unit']]
@@ -145,7 +153,6 @@ shots={shots['value']}, interval={interval['value']}{interval['unit']}")
         # Leave pin low
         GPIO.output([PIN_FOCUS, PIN_SHUTTER],
                     [GPIO.LOW, GPIO.LOW])
-        os.remove(tmp_file)
         time.sleep(offset_time)
         return None
 else:

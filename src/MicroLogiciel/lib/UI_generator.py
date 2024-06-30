@@ -12,8 +12,10 @@ import time
 import qrcode
 import logging
 import logging.config
+import filelock
 import subprocess
 import numpy as np
+import multiprocessing
 from PIL import Image, ImageDraw
 
 import lib.utils as utils
@@ -969,6 +971,8 @@ class SequenceRunningPage(Button):
         self.action = lambda: None
         
         self.tmp_param_file = "../tmp/sequence_parameters.tmp"
+        self.tmp_locker = "../tmp/tmp.lock"
+        self.lock = filelock.FileLock(self.tmp_locker)
         
         return None
     
@@ -987,23 +991,20 @@ class SequenceRunningPage(Button):
         self._start_time = self.sequence_parameters['sequence_time']['start']
         self._end_time = self.sequence_parameters['sequence_time']['end']
         
-        child_pid = os.fork()
-        if child_pid == 0:
-            utils.execute_sequence(**self.sequence_parameters['sequence_parameters'])
-            self.class_logger.info("end sequence",
-                                   extra={'className':f"{self.__class__.__name__}:"})
-            self.class_logger.debug(f"End time error (estimated-real): {self._end_time-time.time()}s",
-                                    extra={'className':f"{self.__class__.__name__}:"})
-            os.kill(os.getpid(), 9)
-        else:
-            time.sleep(0.25)
-            while os.path.isfile("../tmp/running_parameters.tmp"):
-                if self.display_running():
-                    break
-                else:
-                    time.sleep(0.25)
-            self.action = self.keys_callbacks['go_back']
-            self.action()
+        self.trigger_process = multiprocessing.Process(target=utils.execute_sequence,
+                                                       args=(self.sequence_parameters['sequence_parameters'],))
+        self.trigger_process.start()
+        while self.trigger_process.is_alive():
+            if self.display_running():
+                break
+            else:
+                time.sleep(min(5, self._time_exp/2))
+        self.class_logger.info("end sequence",
+                                extra={'className':f"{self.__class__.__name__}:"})
+        self.class_logger.debug(f"End time error (estimated-real): {self._end_time-time.time():.6f}s",
+                                extra={'className':f"{self.__class__.__name__}:"})
+        self.action = self.keys_callbacks['go_back']
+        self.action()
         return None
     
     def navigate(self, direction):
@@ -1017,8 +1018,9 @@ class SequenceRunningPage(Button):
         self.class_logger.info("display screen while running",
                                extra={'className':f"{self.__class__.__name__}:"})
         try:
-            with open("../tmp/running_parameters.tmp", 'r') as f:
-                running_track = json.load(f)
+            with self.lock:
+                with open("../tmp/running_parameters.tmp", 'r') as f:
+                    running_track = json.load(f)
         except FileNotFoundError as e:
             self.class_logger.warning(f"File not found: {e}",
                                       extra={'className':f"{self.__class__.__name__}:"})
