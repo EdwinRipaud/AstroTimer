@@ -12,6 +12,7 @@ import time
 import json
 import logging
 import logging.config
+import filelock
 
 OPERATING_SYSTEM = os.uname()
 RUN_ON_RPi = (OPERATING_SYSTEM.sysname == 'Linux') and (OPERATING_SYSTEM.machine in ['aarch64', 'armv6l'])
@@ -28,12 +29,14 @@ PIN_FOCUS = 20
 UNIT_CONVERTER = {'s':1, 'ms':1e-3, 'us':1e-6}
 
 tmp_file = "../tmp/running_parameters.tmp"
+lock = filelock.FileLock('tmp.lock')
 
 def keep_track(taken=-1, remaining=-1):
     lib_logger.info("Saving current parameters")
     keep_track_dict = {"taken":taken, "remaining":remaining}
-    with open(tmp_file, 'w') as f:
-        json.dump(keep_track_dict, f)
+    with lock:
+        with open(tmp_file, 'w') as f:
+            json.dump(keep_track_dict, f)
     return None
 
 def _check_pattern(fmt, unit):
@@ -97,23 +100,23 @@ if RUN_ON_RPi:
     GPIO.setup(PIN_SHUTTER, GPIO.OUT)
     GPIO.setup(PIN_FOCUS, GPIO.OUT)
     
-    def execute_sequence(exposure:dict, shots:dict, interval:dict, offset:dict):
+    def execute_sequence(parameters:dict):
         os.makedirs(os.path.dirname(tmp_file), exist_ok=True)
         try:
-            offset_time = offset['value'] * UNIT_CONVERTER[offset['unit']]
+            offset_time = parameters['offset']['value'] * UNIT_CONVERTER[parameters['offset']['unit']]
             
-            exposure_time = exposure['value'] * UNIT_CONVERTER[exposure['unit']]
+            exposure_time = parameters['exposure']['value'] * UNIT_CONVERTER[parameters['exposure']['unit']]
             exposure_time += offset_time
             
-            nb_shots = shots['value']
+            nb_shots = parameters['shots']['value']
             
-            interval_time = interval['value'] * UNIT_CONVERTER[interval['unit']]
+            interval_time = parameters['interval']['value'] * UNIT_CONVERTER[parameters['interval']['unit']]
         except KeyError as e:
             lib_logger.error(f"key error: unknown key '{e}'")
             return None
         
-        lib_logger.info(f"Sequence parameters: exposure={exposure['value']}{exposure['unit']}, \
-shots={shots['value']}, interval={interval['value']}{interval['unit']}")
+        lib_logger.info(f"Sequence parameters: exposure={parameters['exposure']['value']}{parameters['exposure']['unit']}, \
+shots={parameters['shots']['value']}, interval={parameters['interval']['value']}{parameters['interval']['unit']}")
     
         keep_track(taken=0, remaining=nb_shots)
         
@@ -149,7 +152,8 @@ shots={shots['value']}, interval={interval['value']}{interval['unit']}")
         time.sleep(offset_time)
         return None
 else:
-    lib_logger.warning("Cannot run on a non-RaspberryPi board")
-    def run_sequence(exposure:dict, shots:dict, interval:dict, offset:dict):
-        lib_logger.error("Impossible to call run_sequence")
+    lib_logger.warning("Cannot trigger sequence on a non-RaspberryPi board")
+    def execute_sequence(parameters:dict):
+        lib_logger.error("Impossible to run execute_sequence")
+        lib_logger.info(f"Input parameters: {parameters}")
         return None

@@ -7,3 +7,6 @@
 
 tmp/
 *.tmp
+
+test*.py
+*.lock
