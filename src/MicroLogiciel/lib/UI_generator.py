@@ -15,6 +15,7 @@ import filelock
 import logging.config
 import subprocess
 import multiprocessing
+import threading
 import numpy as np
 from PIL import Image, ImageDraw
 
@@ -812,7 +813,7 @@ class SequenceParameterPage(Parameter, Button):
             'button' : {'up': self.keys_callbacks['button_up'],
                         'down': self.keys_callbacks['button_down']}
             }
-        self.current_option = 0
+        self.current_option = -1
         self.activate_options()
         
         self.tmp_param_file = "../tmp/sequence_parameters.tmp"
@@ -932,36 +933,36 @@ class SequenceParameterPage(Parameter, Button):
         return None
 
 
-class Trigger:
-    class_logger = logging.getLogger('classLogger')
-    def __init__(self, process_dict:dict, end_time:float):
-        self.end_time = end_time
-        self.process_dict = {name:multiprocessing.Process(**arguments) for name, arguments in process_dict.items()}
-        print("Run child process")
-        for process in self.process_dict.values():
-            process.start()
-        self.class_logger.warning("Launch trigger and display_running",
-                                extra={'className':f"{self.__class__.__name__}:"})
-        return None
-    def join(self):
-        print(self.process_dict.keys())
-        self.process_dict['trigger'].join()
-        print("After join")
-        if self.process_dict['display'].is_alive():
-            self.process_dict['display'].terminate()
-            self.process_dict['display'].join()
-        print("All thread ended")
-        return None
-    def terminate(self):
-        print("termnate child process")
-        for process in self.process_dict.values():
-            print("hfdhffhh")
-            if process.is_alive():
-                process.terminate()
-                process.join()
-        self.class_logger.info("Interrupt sequence during execution",
-                                extra={'className':f"{self.__class__.__name__}:"})
-        return None
+# class Trigger:
+#     class_logger = logging.getLogger('classLogger')
+#     def __init__(self, process_dict:dict, end_time:float):
+#         self.end_time = end_time
+#         self.process_dict = {name:multiprocessing.Process(**arguments) for name, arguments in process_dict.items()}
+#         print("Run child process")
+#         for process in self.process_dict.values():
+#             process.start()
+#         self.class_logger.warning("Launch trigger and display_running",
+#                                 extra={'className':f"{self.__class__.__name__}:"})
+#         return None
+#     def join(self):
+#         print(self.process_dict.keys())
+#         self.process_dict['trigger'].join()
+#         print("After join")
+#         if self.process_dict['display'].is_alive():
+#             self.process_dict['display'].terminate()
+#             self.process_dict['display'].join()
+#         print("All thread ended")
+#         return None
+#     def terminate(self):
+#         print("termnate child process")
+#         for process in self.process_dict.values():
+#             print("hfdhffhh")
+#             if process.is_alive():
+#                 process.terminate()
+#                 process.join()
+#         self.class_logger.info("Interrupt sequence during execution",
+#                                 extra={'className':f"{self.__class__.__name__}:"})
+#         return None
 
 
 class SequenceRunningPage(Button):
@@ -1013,11 +1014,12 @@ class SequenceRunningPage(Button):
                                     extra={'className':f"{self.__class__.__name__}:"})
             return None
         if self.action.__name__ == "go_back":
-            print("go back !!!")
-            self.seq_trigger.terminate()
-            if self.trigger_thread.is_alive():
-                self.trigger_thread.terminate()
-                self.trigger_thread.join()
+            self.trigger_process.terminate()
+            self.interrupt_event.set()
+            self.trigger_process.join()
+            self.display_thread.join()
+            self.class_logger.warning("Interrupt sequence",
+                                    extra={'className':f"{self.__class__.__name__}:"})
             self.action = self.keys_callbacks['go_back']
         self.action()
         return None
@@ -1037,25 +1039,32 @@ class SequenceRunningPage(Button):
         self._exposure = self.sequence_parameters['sequence_parameters']['exposure']
         self._time_exp = self._exposure['value'] * UNIT_CONVERTER[self._exposure['unit']]
         self._end_time = self.sequence_parameters['sequence_time']['end']
+        
         self.PROCESS_DICT = {'trigger':{'target':utils.execute_sequence,
                                         'args':(self.sequence_parameters['sequence_parameters'],)},
-                             'display':{'target':self.display_running,
+                              'display':{'target':self.display_running,
                                         'args':()}
-                             }
-        self.seq_trigger = Trigger(self.PROCESS_DICT, self._end_time)
-        self.trigger_thread = multiprocessing.Process(target=self.seq_trigger.join)
-        self.trigger_thread.start()
+                              }
+        self.interrupt_event = threading.Event()
+        self.watcher_thread = threading.Thread(target=self.run_join)
+        self.watcher_thread.start()
+        return None
+    
+    def run_join(self):
+        self.trigger_process = multiprocessing.Process(target=utils.execute_sequence,
+                                                   args=(self.sequence_parameters['sequence_parameters'],))
+        self.display_thread = threading.Thread(target=self.display_running)
         
-        self.class_logger.warning("end sequence",
-                                extra={'className':f"{self.__class__.__name__}:"})
-        self.class_logger.debug(f"End time error (estimated-real): {self.end_time-time.time():.6f}s",
-                                extra={'className':f"{self.__class__.__name__}:"})
-        self.action = self.keys_callbacks['go_back']
-        self.action()
+        self.trigger_process.start()
+        self.display_thread.start()
+        
+        self.trigger_process.join()
+        self.display_thread.join()
         return None
     
     def display_running(self):
-        while self._end_time>time.time()-self._time_exp:
+        # while self._end_time>time.time()-0.5 and not self.interrupt_event.is_set():
+        while self.trigger_process.is_alive() and not self.interrupt_event.is_set():
             self.class_logger.info("display screen while running",
                                    extra={'className':f"{self.__class__.__name__}:"})
             try:
@@ -1071,7 +1080,14 @@ class SequenceRunningPage(Button):
             self._running_screen(running_track['taken'])
             self._draw_status_bar()
             self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
-            time.sleep(min(5, self._time_exp/2))
+            time.sleep(min(0.5, self._time_exp/2))
+        if not self.interrupt_event.is_set():
+            self.class_logger.warning("end sequence",
+                                    extra={'className':f"{self.__class__.__name__}:"})
+            self.class_logger.warning(f"End time error (estimated-real): {self._end_time-time.time():.6f}s",
+                                    extra={'className':f"{self.__class__.__name__}:"})
+            self.action = self.keys_callbacks['go_back']
+            self.action()
         return None
     
     def _running_screen(self, taken):

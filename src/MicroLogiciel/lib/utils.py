@@ -29,7 +29,8 @@ PIN_FOCUS = 20
 UNIT_CONVERTER = {'s':1, 'ms':1e-3, 'us':1e-6}
 
 tmp_file = "../tmp/running_parameters.tmp"
-lock = filelock.FileLock('tmp.lock')
+tmp_locker = "../tmp/tmp.lock"
+lock = filelock.FileLock(tmp_locker)
 
 def keep_track(taken=-1, remaining=-1):
     lib_logger.info("Saving current parameters")
@@ -148,7 +149,7 @@ shots={parameters['shots']['value']}, interval={parameters['interval']['value']}
         # Leave pin low
         GPIO.output([PIN_FOCUS, PIN_SHUTTER],
                     [GPIO.LOW, GPIO.LOW])
-        os.remove(tmp_file)
+        # os.remove(tmp_file)
         time.sleep(offset_time)
         return None
 else:
