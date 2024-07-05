@@ -11,9 +11,12 @@ import json
 import time
 import qrcode
 import logging
+import filelock
 import logging.config
 import filelock
 import subprocess
+import multiprocessing
+import threading
 import numpy as np
 import multiprocessing
 from PIL import Image, ImageDraw
@@ -567,7 +570,7 @@ class Info(Page):
         self.class_logger.info(f"execute '{self.action.__name__}'",
                                extra={'className':f"{self.__class__.__name__}:"})
         super().navigate(direction)
-        self.action()
+        # self.action()
         return None
     
     def display(self):
@@ -812,7 +815,7 @@ class SequenceParameterPage(Parameter, Button):
             'button' : {'up': self.keys_callbacks['button_up'],
                         'down': self.keys_callbacks['button_down']}
             }
-        self.current_option = 0
+        self.current_option = -1
         self.activate_options()
         
         self.tmp_param_file = "../tmp/sequence_parameters.tmp"
@@ -851,7 +854,6 @@ class SequenceParameterPage(Parameter, Button):
     
     def option_back(self):
         option = self.options_list[self.current_option]
-        print(option, self.parameter_active)
         if option == 'parameter' and self.parameter_seleceted:
             self.parameter_select()
         else:
@@ -893,9 +895,9 @@ class SequenceParameterPage(Parameter, Button):
         offset = seq_param['offset']['value'] * UNIT_CONVERTER[seq_param['offset']['unit']]
         exposure = seq_param['exposure']['value'] * UNIT_CONVERTER[seq_param['exposure']['unit']]
         interval = seq_param['interval']['value'] * UNIT_CONVERTER[seq_param['interval']['unit']]
-        running_time = shots * (offset+exposure) + (shots-1) * interval
         
         start_time = time.time()
+        running_time = shots * (offset+exposure) + (shots-1) * interval
         end_time = start_time + running_time + 2*offset + 0.1
         time_param = {"start":start_time, "end":end_time}
         
@@ -933,8 +935,38 @@ class SequenceParameterPage(Parameter, Button):
         return None
 
 
-# TODO: Make a loop for sequence update, with periode based on running sequence parameters
-# TODO: Add action to the 'pause' button to kill running sequence process and go back to parameters
+# class Trigger:
+#     class_logger = logging.getLogger('classLogger')
+#     def __init__(self, process_dict:dict, end_time:float):
+#         self.end_time = end_time
+#         self.process_dict = {name:multiprocessing.Process(**arguments) for name, arguments in process_dict.items()}
+#         print("Run child process")
+#         for process in self.process_dict.values():
+#             process.start()
+#         self.class_logger.warning("Launch trigger and display_running",
+#                                 extra={'className':f"{self.__class__.__name__}:"})
+#         return None
+#     def join(self):
+#         print(self.process_dict.keys())
+#         self.process_dict['trigger'].join()
+#         print("After join")
+#         if self.process_dict['display'].is_alive():
+#             self.process_dict['display'].terminate()
+#             self.process_dict['display'].join()
+#         print("All thread ended")
+#         return None
+#     def terminate(self):
+#         print("termnate child process")
+#         for process in self.process_dict.values():
+#             print("hfdhffhh")
+#             if process.is_alive():
+#                 process.terminate()
+#                 process.join()
+#         self.class_logger.info("Interrupt sequence during execution",
+#                                 extra={'className':f"{self.__class__.__name__}:"})
+#         return None
+
+
 class SequenceRunningPage(Button):
     class_logger = logging.getLogger('classLogger')
     def __init__(self, config, callbacks, general_config):
@@ -957,11 +989,6 @@ class SequenceRunningPage(Button):
         # Set callbacks for navigation keys
         self.keys_callbacks = {
             **self.keys_callbacks,
-            'select' : self.button_select,
-            'back' : callbacks["keys_callbacks"]['go_back'],
-            'run' : lambda:print("Run function not implemented yet!"),
-            'up' : self.button_up,
-            'down' : self.button_down,
             **callbacks["keys_callbacks"],
             }
         
@@ -971,82 +998,117 @@ class SequenceRunningPage(Button):
         self.action = lambda: None
         
         self.tmp_param_file = "../tmp/sequence_parameters.tmp"
-        self.tmp_locker = "../tmp/tmp.lock"
-        self.lock = filelock.FileLock(self.tmp_locker)
-        
-        return None
-    
-    def run_sequence(self):
-        self.class_logger.info("Launch sequence",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        with open(self.tmp_param_file, 'r') as f:
-            self.sequence_parameters = json.load(f)
-        self._nb_shots = self.sequence_parameters['sequence_parameters']['shots']['value']
-        self._exposure = self.sequence_parameters['sequence_parameters']['exposure']
-        self._time_exp = self._exposure['value'] * UNIT_CONVERTER[self._exposure['unit']]
-        self._offset = self.sequence_parameters['sequence_parameters']['offset']
-        self._time_off = self._offset['value'] * UNIT_CONVERTER[self._offset['unit']]
-        self._interval = self.sequence_parameters['sequence_parameters']['interval']
-        self._time_int = self._interval['value'] * UNIT_CONVERTER[self._interval['unit']]
-        self._start_time = self.sequence_parameters['sequence_time']['start']
-        self._end_time = self.sequence_parameters['sequence_time']['end']
-        
-        self.trigger_process = multiprocessing.Process(target=utils.execute_sequence,
-                                                       args=(self.sequence_parameters['sequence_parameters'],))
-        self.trigger_process.start()
-        while self.trigger_process.is_alive():
-            if self.display_running():
-                break
-            else:
-                time.sleep(min(5, self._time_exp/2))
-        self.class_logger.info("end sequence",
-                                extra={'className':f"{self.__class__.__name__}:"})
-        self.class_logger.debug(f"End time error (estimated-real): {self._end_time-time.time():.6f}s",
-                                extra={'className':f"{self.__class__.__name__}:"})
-        self.action = self.keys_callbacks['go_back']
-        self.action()
+        self.tmp_locker_file = "../tmp/tmp.lock"
+        self.lock = filelock.FileLock(self.tmp_locker_file)
         return None
     
     def navigate(self, direction):
         self.class_logger.info("navigate into sequence running page options",
                                extra={'className':f"{self.__class__.__name__}:"})
-        super().navigate(direction)
+        try:
+            if self.keys[direction] not in ['', 'none']:
+                if type(self.keys_callbacks[self.keys[direction]]) is list:
+                    self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
+                else:
+                    self.action = self.keys_callbacks[self.keys[direction]]
+        except KeyError as e:
+            self.class_logger.error(f"KeyError: {e}",
+                                    extra={'className':f"{self.__class__.__name__}:"})
+            return None
+        if self.action.__name__ == "go_back":
+            self.trigger_process.terminate()
+            self.interrupt_event.set()
+            self.trigger_process.join()
+            self.display_thread.join()
+            self.class_logger.warning("Interrupt sequence",
+                                    extra={'className':f"{self.__class__.__name__}:"})
+            self.action = self.keys_callbacks['go_back']
         self.action()
         return None
     
-    def display_running(self):
-        self.class_logger.info("display screen while running",
+    def run_sequence(self):
+        self.class_logger.info("Launch sequence",
                                extra={'className':f"{self.__class__.__name__}:"})
         try:
-            with self.lock:
-                with open("../tmp/running_parameters.tmp", 'r') as f:
-                    running_track = json.load(f)
+            with open(self.tmp_param_file, 'r') as f:
+                self.sequence_parameters = json.load(f)
         except FileNotFoundError as e:
             self.class_logger.warning(f"File not found: {e}",
                                       extra={'className':f"{self.__class__.__name__}:"})
-            return True
+            return None
+        # self.LCD.set_bl_DutyCycle(7.5) # Save power consumption
+        self._nb_shots = self.sequence_parameters['sequence_parameters']['shots']['value']
+        self._exposure = self.sequence_parameters['sequence_parameters']['exposure']
+        self._time_exp = self._exposure['value'] * UNIT_CONVERTER[self._exposure['unit']]
+        self._end_time = self.sequence_parameters['sequence_time']['end']
         
-        super().display()
+        self.PROCESS_DICT = {'trigger':{'target':utils.execute_sequence,
+                                        'args':(self.sequence_parameters['sequence_parameters'],)},
+                              'display':{'target':self.display_running,
+                                        'args':()}
+                              }
+        self.interrupt_event = threading.Event()
+        self.watcher_thread = threading.Thread(target=self.run_join)
+        self.watcher_thread.start()
+        return None
+    
+    def run_join(self):
+        self.trigger_process = multiprocessing.Process(target=utils.execute_sequence,
+                                                   args=(self.sequence_parameters['sequence_parameters'],))
+        self.display_thread = threading.Thread(target=self.display_running)
+        
+        self.trigger_process.start()
+        self.display_thread.start()
+        
+        self.trigger_process.join()
+        self.display_thread.join()
+        return None
+    
+    def display_running(self):
+        # while self._end_time>time.time()-0.5 and not self.interrupt_event.is_set():
+        while self.trigger_process.is_alive() and not self.interrupt_event.is_set():
+            self.class_logger.info("display screen while running",
+                                   extra={'className':f"{self.__class__.__name__}:"})
+            try:
+                with self.lock:
+                    with open("../tmp/running_parameters.tmp", 'r') as f:
+                        running_track = json.load(f)
+            except FileNotFoundError as e:
+                self.class_logger.warning(f"File not found: {e}",
+                                          extra={'className':f"{self.__class__.__name__}:"})
+                return True
+            
+            super().display()
+            self._running_screen(running_track['taken'])
+            self._draw_status_bar()
+            self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+            time.sleep(min(0.5, self._time_exp/2))
+        if not self.interrupt_event.is_set():
+            self.class_logger.warning("end sequence",
+                                    extra={'className':f"{self.__class__.__name__}:"})
+            self.class_logger.warning(f"End time error (estimated-real): {self._end_time-time.time():.6f}s",
+                                    extra={'className':f"{self.__class__.__name__}:"})
+            self.action = self.keys_callbacks['go_back']
+            self.action()
+        return None
+    
+    def _running_screen(self, taken):
         fill = (255,255,255)
         text_font = self.FONTS["PixelOperator_M"]
         number_font = self.FONTS["PixelOperatorBold_M"]
         draw = ImageDraw.Draw(self.LCD.screen_img)
         # Current shot traking
-        taken = running_track['taken']+1
         draw.text((12, 50), "Shot:", fill=fill, font=text_font, anchor='lm', align='center')
-        draw.text((110, 50), f"{taken}/{self._nb_shots}", fill=fill, font=number_font, anchor='lm', align='center')
+        draw.text((110, 50), f"{taken+1}/{self._nb_shots}", fill=fill, font=number_font, anchor='lm', align='center')
         # Exposed time tracking
-        time_exposed = utils.time2str(seconds=running_track['taken']*self._time_exp, fmt='(s)s')
+        time_exposed = utils.time2str(seconds=taken*self._time_exp, fmt='(s)s')
         draw.text((12, 75), "Exposure:", fill=fill, font=text_font, anchor='lm', align='center')
         draw.text((110, 75), f"{time_exposed}", fill=fill, font=number_font, anchor='lm', align='center')
         # Time left tracking
         draw.text((12, 110), "Time left:", fill=fill, font=text_font, anchor='lm', align='center')
-        time_left = utils.time2str(seconds=self._end_time-time.time(), fmt='(*h)h (*m)min (s)s')
+        time_left = utils.time2str(seconds=max(0, self._end_time-time.time()), fmt='(*h)h (*m)min (s)s')
         draw.text((int(self.LCD.height/2), 140), f"{time_left}",
                   fill=(255,255,255), font=self.FONTS["PixelOperatorBold_L"], anchor='mm', align='center')
-    
-        self._draw_status_bar()
-        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
     
     def display(self):

@@ -125,11 +125,11 @@
         "title" : "Running sequence",
         "class" : "SequenceRunningPage",
         "keys" : {
-            "enter" : "select",
-            "up"    : "up",
-            "down"  : "down",
+            "enter" : "go_back",
+            "up"    : "go_back",
+            "down"  : "go_back",
             "left"  : "go_back",
-            "right" : ""
+            "right" : "go_back"
         },
         "buttons" : {
             "options" : [
