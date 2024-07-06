@@ -2,3 +2,13 @@
 *.py[cod]
 
 *.exe
+
+*.log
+
+tmp/
+*.tmp
+
+*.lock
+
+test/
+*test*.py

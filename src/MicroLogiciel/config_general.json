@@ -1,0 +1,52 @@
+{
+    "paths": {
+        "PATH_ASSETS"  : "assets/",
+        "PATH_FONTS"   : "fonts/",
+        "PATH_WIFI"    : "/etc/hostapd/hostapd.conf",
+        "PATH_WEBSITE" : {
+            "path" : "/etc/dhcpcd-static.conf",
+            "port" : 55000
+        }
+    },
+    "GPIO_5_way_switch": {
+        "enter": 6,
+        "right": 19,
+        "left" : 5,
+        "up"   : 26,
+        "down" : 13
+    },
+    "display": {
+        "spi_bus"   : 0,
+        "spi_device": 0,
+        "spi_freq"  : 40000000,
+        "rst"       : 27,
+        "dc"        : 25,
+        "bl"        : 18,
+        "bl_freq"   : 500
+    },
+    "battery_icons": {
+        "Icon_battery_90.png" : 90,
+        "Icon_battery_75.png" : 75,
+        "Icon_battery_55.png" : 55,
+        "Icon_battery_35.png" : 35,
+        "Icon_battery_25.png" : 25,
+        "Icon_battery_15.png" : 15,
+        "Icon_battery_7.5.png": 7.5
+    },
+    "fonts": {
+        "PixelOperator_S"        : {"path": "pixel_operator/PixelOperator.ttf",          "size":16},
+        "PixelOperatorBold_S"    : {"path": "pixel_operator/PixelOperator-Bold.ttf",     "size":16},
+        "PixelOperatorMono_S"    : {"path": "pixel_operator/PixelOperatorMono.ttf",      "size":16},
+        "PixelOperatorMonoBold_S": {"path": "pixel_operator/PixelOperatorMono-Bold.ttf", "size":16},
+        
+        "PixelOperator_M"        : {"path": "pixel_operator/PixelOperator.ttf",          "size":24},
+        "PixelOperatorBold_M"    : {"path": "pixel_operator/PixelOperator-Bold.ttf",     "size":24},
+        "PixelOperatorMono_M"    : {"path": "pixel_operator/PixelOperatorMono.ttf",      "size":24},
+        "PixelOperatorMonoBold_M": {"path": "pixel_operator/PixelOperatorMono-Bold.ttf", "size":24},
+        
+        "PixelOperator_L"        : {"path": "pixel_operator/PixelOperator.ttf",          "size":32},
+        "PixelOperatorBold_L"    : {"path": "pixel_operator/PixelOperator-Bold.ttf",     "size":32},
+        "PixelOperatorMono_L"    : {"path": "pixel_operator/PixelOperatorMono.ttf",      "size":32},
+        "PixelOperatorMonoBold_L": {"path": "pixel_operator/PixelOperatorMono-Bold.ttf", "size":32}
+    }
+}
