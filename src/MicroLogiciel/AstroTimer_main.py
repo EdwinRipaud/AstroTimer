@@ -63,7 +63,7 @@ class MainApp:
         self._general_config['LCD'] = LCD_display.LCD_1inch47(**self.general_config["display"])
         
         self.page_manager = PageManager(UI_config_path, self._general_config)
-        self.page_manager.show_page("sequence_parameter_page")#"main_menu_page")#
+        self.page_manager.show_page("main_menu_page")#"sequence_parameter_page")#
         
         if RUN_ON_RPi:
             self.general_config['GPIO_5_way_switch'] = {value:key for key, value in self.general_config['GPIO_5_way_switch'].items()}

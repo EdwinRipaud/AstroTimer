@@ -596,6 +596,11 @@ class ComingSoonPage(Page):
         
         # Set callbacks for navigation keys
         self.keys_callbacks = {**callbacks["keys_callbacks"]}
+        
+        # Set callbacks for navigation
+        self.page_callbacks = {**callbacks["page_callbacks"]}
+        
+        self.action = lambda: None
         return None
     
     def navigate(self, direction):
@@ -933,38 +938,6 @@ class SequenceParameterPage(Parameter, Button):
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
-
-
-# class Trigger:
-#     class_logger = logging.getLogger('classLogger')
-#     def __init__(self, process_dict:dict, end_time:float):
-#         self.end_time = end_time
-#         self.process_dict = {name:multiprocessing.Process(**arguments) for name, arguments in process_dict.items()}
-#         print("Run child process")
-#         for process in self.process_dict.values():
-#             process.start()
-#         self.class_logger.warning("Launch trigger and display_running",
-#                                 extra={'className':f"{self.__class__.__name__}:"})
-#         return None
-#     def join(self):
-#         print(self.process_dict.keys())
-#         self.process_dict['trigger'].join()
-#         print("After join")
-#         if self.process_dict['display'].is_alive():
-#             self.process_dict['display'].terminate()
-#             self.process_dict['display'].join()
-#         print("All thread ended")
-#         return None
-#     def terminate(self):
-#         print("termnate child process")
-#         for process in self.process_dict.values():
-#             print("hfdhffhh")
-#             if process.is_alive():
-#                 process.terminate()
-#                 process.join()
-#         self.class_logger.info("Interrupt sequence during execution",
-#                                 extra={'className':f"{self.__class__.__name__}:"})
-#         return None
 
 
 class SequenceRunningPage(Button):
@@ -1307,9 +1280,12 @@ class SettingPage(Menu):
         return None
     
     def navigate(self, direction):
-        self.class_logger.info(f"execute '{self.action.__name__}'",
+        print(f"\n\n{direction}\n\n")
+        self.class_logger.info("Navigate into SettingPage",
                                extra={'className':f"{self.__class__.__name__}:"})
         super().navigate(direction)
+        self.class_logger.info(f"Execute: '{self.action.__name__}'",
+                               extra={'className':f"{self.__class__.__name__}:"})
         self.action()
         return None
 
