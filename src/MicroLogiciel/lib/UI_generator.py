@@ -13,15 +13,14 @@ import qrcode
 import logging
 import filelock
 import logging.config
-import filelock
 import subprocess
 import multiprocessing
 import threading
 import numpy as np
-import multiprocessing
 from PIL import Image, ImageDraw
 
-import lib.utils as utils
+import lib.Trigger as trigger
+from lib.MAX17043 import max17043
 
 OPERATING_SYSTEM = os.uname()
 RUN_ON_RPi = (OPERATING_SYSTEM.sysname == 'Linux') and (OPERATING_SYSTEM.machine in ['aarch64', 'armv6l'])
@@ -40,6 +39,9 @@ lib_logger.debug("Imported file")
 
 UNIT_CONVERTER = {'s':1, 'ms':1e-3, 'us':1e-6}
 
+BATTERY_SOC = -1
+BATTERY_VOLTAGE = -1
+
 
 class Page:
     class_logger = logging.getLogger('classLogger')
@@ -54,7 +56,6 @@ class Page:
         # Set callbacks for navigation
         self.page_callbacks = {}
         
-        self.BATTERY_LEVEL = 47
         self.STATUS_TXT    = "Ready to GO !"
         return None
     
@@ -64,8 +65,8 @@ class Page:
         auth_level = np.array(list(self.BATTERY_DICT.keys()))
         auth_level[::-1].sort()
         
-        if self.BATTERY_LEVEL>auth_level[-1]:
-            arg = np.argmax(auth_level<self.BATTERY_LEVEL)
+        if BATTERY_SOC>auth_level[-1]:
+            arg = np.argmax(auth_level<BATTERY_SOC)
         else:
             arg = -1
         return self.BATTERY_DICT[auth_level[arg]]
@@ -157,7 +158,7 @@ class Menu(Page):
                                extra={'className':f"{self.__class__.__name__}:"})
         action = self.menu_options[self.current_menu]["action"]
         if action not in ['', 'none']:
-            self.class_logger.debug("action '{action}'",
+            self.class_logger.debug(f"action '{action}'",
                                     extra={'className':f"{self.__class__.__name__}:"})
             self.page_callbacks[action](action)
         else:
@@ -281,7 +282,7 @@ class Button(Page):
                                extra={'className':f"{self.__class__.__name__}:"})
         action = self.menu_options[self.current_button]["action"]
         if action not in ['', 'none']:
-            self.class_logger.debug("action '{action}'",
+            self.class_logger.debug(f"action '{action}'",
                                     extra={'className':f"{self.__class__.__name__}:"})
             self.page_callbacks[action](action)
         else:
@@ -719,11 +720,11 @@ class ShutdownPage(Button):
         action = self.button_options[self.current_button]['action']
         
         if action in self.page_callbacks.keys():
-            self.class_logger.debug("action '{action}'",
+            self.class_logger.debug(f"action '{action}'",
                                     extra={'className':f"{self.__class__.__name__}:"})
             self.page_callbacks[action](action)
         elif action in self.keys_callbacks.keys():
-            self.class_logger.debug("action '{action}'",
+            self.class_logger.debug(f"action '{action}'",
                                     extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks[action]()
         else:
@@ -845,11 +846,11 @@ class SequenceParameterPage(Parameter, Button):
                                extra={'className':f"{self.__class__.__name__}:"})
         action = self.button_options[self.current_button]['action']
         if action in self.page_callbacks.keys():
-            self.class_logger.debug("action '{action}'",
+            self.class_logger.debug(f"action '{action}'",
                                     extra={'className':f"{self.__class__.__name__}:"})
             self.page_callbacks[action](action)
         elif action in self.keys_callbacks.keys():
-            self.class_logger.debug("action '{action}'",
+            self.class_logger.debug(f"action '{action}'",
                                     extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks[action]()
         else:
@@ -1015,7 +1016,7 @@ class SequenceRunningPage(Button):
         self._time_exp = self._exposure['value'] * UNIT_CONVERTER[self._exposure['unit']]
         self._end_time = self.sequence_parameters['sequence_time']['end']
         
-        self.PROCESS_DICT = {'trigger':{'target':utils.execute_sequence,
+        self.PROCESS_DICT = {'trigger':{'target':trigger.execute_sequence,
                                         'args':(self.sequence_parameters['sequence_parameters'],)},
                               'display':{'target':self.display_running,
                                         'args':()}
@@ -1026,7 +1027,7 @@ class SequenceRunningPage(Button):
         return None
     
     def run_join(self):
-        self.trigger_process = multiprocessing.Process(target=utils.execute_sequence,
+        self.trigger_process = multiprocessing.Process(target=trigger.execute_sequence,
                                                    args=(self.sequence_parameters['sequence_parameters'],))
         self.display_thread = threading.Thread(target=self.display_running)
         
@@ -1038,6 +1039,9 @@ class SequenceRunningPage(Button):
         return None
     
     def display_running(self):
+        # TODO: Loke to make two imbricate while, the inner one for the high
+        #       speed interrupt check and the outer one for the slow speed
+        #       display actualisation
         # while self._end_time>time.time()-0.5 and not self.interrupt_event.is_set():
         while self.trigger_process.is_alive() and not self.interrupt_event.is_set():
             self.class_logger.info("display screen while running",
@@ -1074,12 +1078,12 @@ class SequenceRunningPage(Button):
         draw.text((12, 50), "Shot:", fill=fill, font=text_font, anchor='lm', align='center')
         draw.text((110, 50), f"{taken+1}/{self._nb_shots}", fill=fill, font=number_font, anchor='lm', align='center')
         # Exposed time tracking
-        time_exposed = utils.time2str(seconds=taken*self._time_exp, fmt='(s)s')
+        time_exposed = trigger.time2str(seconds=taken*self._time_exp, fmt='(s)s')
         draw.text((12, 75), "Exposure:", fill=fill, font=text_font, anchor='lm', align='center')
         draw.text((110, 75), f"{time_exposed}", fill=fill, font=number_font, anchor='lm', align='center')
         # Time left tracking
         draw.text((12, 110), "Time left:", fill=fill, font=text_font, anchor='lm', align='center')
-        time_left = utils.time2str(seconds=max(0, self._end_time-time.time()), fmt='(*h)h (*m)min (s)s')
+        time_left = trigger.time2str(seconds=max(0, self._end_time-time.time()), fmt='(*h)h (*m)min (s)s')
         draw.text((int(self.LCD.height/2), 140), f"{time_left}",
                   fill=(255,255,255), font=self.FONTS["PixelOperatorBold_L"], anchor='mm', align='center')
         return None
@@ -1380,6 +1384,10 @@ class PageManager:
             "page_callbacks" : self.page_callbacks,
             }
         
+        self.stop_event = threading.Event()
+        self.battery_SoC_thread = SoCMonitor(self.stop_event)
+        self.battery_SoC_thread.start()
+        
         self.load_pages()
         return None
     
@@ -1411,5 +1419,42 @@ class PageManager:
     def shutdown(self):
         self.class_logger.info("shutdown PageManager",
                                extra={'className':f"{self.__class__.__name__}:"})
+        self.stop_event.set()
+        if self.battery_SoC_thread.is_alive():
+            self.battery_SoC_thread.join()
         self.QUIT = True
+        return None
+
+
+class SoCMonitor(threading.Thread):
+    class_logger = logging.getLogger('classLogger')
+    def __init__(self, event):
+        self.class_logger.debug("initialise battery monitoring thread",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super(SoCMonitor, self).__init__()
+        self._stop_event = event
+    
+    def run(self):
+        self.class_logger.info("Start thread wor",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        global BATTERY_SOC
+        global BATTERY_VOLTAGE
+        fuel_gauge = max17043()
+        Tsleep = 2.5
+        Ti = time.time()
+        try:
+            while not self._stop_event.is_set():
+                if (time.time()-Ti) > Tsleep:
+                    BATTERY_SOC = fuel_gauge.getSoc()
+                    BATTERY_VOLTAGE = fuel_gauge.getVCell()
+                    self.class_logger.info(f"Battery SoC: {BATTERY_SOC:.2f}%; Battery voltage: {BATTERY_VOLTAGE:.3f} V",
+                                           extra={'className':f"{self.__class__.__name__}:"})
+                    Ti = time.time()
+                else:
+                    pass
+                time.sleep(0.125)
+        except OSError as e:
+            self.class_logger.error(f"OSError: {e}, I2C device (addr {hex(fuel_gauge.max17043Address)}) not responding",
+                                    extra={'className':f"{self.__class__.__name__}:"})
+        fuel_gauge.deinit()
         return None
