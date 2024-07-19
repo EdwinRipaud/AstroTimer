@@ -1039,27 +1039,27 @@ class SequenceRunningPage(Button):
         return None
     
     def display_running(self):
-        # TODO: Loke to make two imbricate while, the inner one for the high
-        #       speed interrupt check and the outer one for the slow speed
-        #       display actualisation
-        # while self._end_time>time.time()-0.5 and not self.interrupt_event.is_set():
+        Ti = time.time()
         while self.trigger_process.is_alive() and not self.interrupt_event.is_set():
-            self.class_logger.info("display screen while running",
-                                   extra={'className':f"{self.__class__.__name__}:"})
-            try:
-                with self.lock:
-                    with open("../tmp/running_parameters.tmp", 'r') as f:
-                        running_track = json.load(f)
-            except FileNotFoundError as e:
-                self.class_logger.warning(f"File not found: {e}",
-                                          extra={'className':f"{self.__class__.__name__}:"})
-                return True
-            
-            super().display()
-            self._running_screen(running_track['taken'])
-            self._draw_status_bar()
-            self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
-            time.sleep(min(0.5, self._time_exp/2))
+            if (time.time()-Ti) > min(self.UPDATE_TIMES["display_refresh"], self._time_exp/2):
+                self.class_logger.info("display screen while running",
+                                       extra={'className':f"{self.__class__.__name__}:"})
+                try:
+                    with self.lock:
+                        with open("../tmp/running_parameters.tmp", 'r') as f:
+                            running_track = json.load(f)
+                except FileNotFoundError as e:
+                    self.class_logger.warning(f"File not found: {e}",
+                                              extra={'className':f"{self.__class__.__name__}:"})
+                    return True
+                
+                super().display()
+                self._running_screen(running_track['taken'])
+                self._draw_status_bar()
+                self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+                Ti = time.time()
+            else:
+                time.sleep(self.UPDATE_TIMES["thread_scan"])
         if not self.interrupt_event.is_set():
             self.class_logger.warning("end sequence",
                                     extra={'className':f"{self.__class__.__name__}:"})
@@ -1385,7 +1385,7 @@ class PageManager:
             }
         
         self.stop_event = threading.Event()
-        self.battery_SoC_thread = SoCMonitor(self.stop_event)
+        self.battery_SoC_thread = SoCMonitor(self.stop_event, self._general_config)
         self.battery_SoC_thread.start()
         
         self.load_pages()
@@ -1428,11 +1428,15 @@ class PageManager:
 
 class SoCMonitor(threading.Thread):
     class_logger = logging.getLogger('classLogger')
-    def __init__(self, event):
+    def __init__(self, event, general_config):
         self.class_logger.debug("initialise battery monitoring thread",
                                extra={'className':f"{self.__class__.__name__}:"})
         super(SoCMonitor, self).__init__()
         self._stop_event = event
+        
+        # Associate general high level attribute to 'self'
+        for key, value in general_config.items():
+            setattr(self, key, value)
     
     def run(self):
         self.class_logger.info("Start thread wor",
@@ -1440,11 +1444,10 @@ class SoCMonitor(threading.Thread):
         global BATTERY_SOC
         global BATTERY_VOLTAGE
         fuel_gauge = max17043()
-        Tsleep = 2.5
         Ti = time.time()
         try:
             while not self._stop_event.is_set():
-                if (time.time()-Ti) > Tsleep:
+                if (time.time()-Ti) > self.UPDATE_TIMES["battery_SoC"]:
                     BATTERY_SOC = fuel_gauge.getSoc()
                     BATTERY_VOLTAGE = fuel_gauge.getVCell()
                     self.class_logger.info(f"Battery SoC: {BATTERY_SOC:.2f}%; Battery voltage: {BATTERY_VOLTAGE:.3f} V",
@@ -1452,7 +1455,7 @@ class SoCMonitor(threading.Thread):
                     Ti = time.time()
                 else:
                     pass
-                time.sleep(0.125)
+                time.sleep(self.UPDATE_TIMES["thread_scan"])
         except OSError as e:
             self.class_logger.error(f"OSError: {e}, I2C device (addr {hex(fuel_gauge.max17043Address)}) not responding",
                                     extra={'className':f"{self.__class__.__name__}:"})

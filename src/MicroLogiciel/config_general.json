@@ -48,5 +48,10 @@
         "PixelOperatorBold_L"    : {"path": "pixel_operator/PixelOperator-Bold.ttf",     "size":32},
         "PixelOperatorMono_L"    : {"path": "pixel_operator/PixelOperatorMono.ttf",      "size":32},
         "PixelOperatorMonoBold_L": {"path": "pixel_operator/PixelOperatorMono-Bold.ttf", "size":32}
+    },
+    "update_times": {
+        "thread_scan": 0.125,
+        "battery_SoC": 2,
+        "display_refresh": 5
     }
 }

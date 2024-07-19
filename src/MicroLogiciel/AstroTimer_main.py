@@ -53,6 +53,9 @@ class MainApp:
         # Set default icon for bad icon request
         self._general_config['default_icon'] = Image.open(f"{self._general_config['PATH_ASSETS']}Icon_Empty.png")
         
+        # Set update times
+        self._general_config["UPDATE_TIMES"] = {key:data for key, data in self.general_config['update_times'].items()}
+        
         # Set fonts dictionary
         self._general_config['FONTS'] = {key: ImageFont.truetype(self._general_config['PATH_FONTS'] + data['path'], data['size']) for key, data in self.general_config["fonts"].items()}
         
