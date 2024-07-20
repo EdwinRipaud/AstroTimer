@@ -1284,7 +1284,6 @@ class SettingPage(Menu):
         return None
     
     def navigate(self, direction):
-        print(f"\n\n{direction}\n\n")
         self.class_logger.info("Navigate into SettingPage",
                                extra={'className':f"{self.__class__.__name__}:"})
         super().navigate(direction)
@@ -1315,6 +1314,15 @@ class BatteryPage(Info):
         self.page_callbacks = {**self.page_callbacks, **callbacks["page_callbacks"]}
         
         self.action = lambda: None
+        
+        self.MAX17043_is_active = True
+        try:
+            self.fuel_gauge = max17043()
+            self.fuel_gauge.getVCell()
+        except OSError as e:
+            self.class_logger.error(f"OSError: {e}, I2C device (addr {hex(self.fuel_gauge.max17043Address)}) not responding",
+                                    extra={'className':f"{self.__class__.__name__}:"})
+            self.MAX17043_is_active = False
         return None
     
     def display(self):
@@ -1323,13 +1331,22 @@ class BatteryPage(Info):
         super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
         
-        icon = self.default_icon
-        self.LCD.screen_img.paste(icon, (160-int(icon.width/2), 50))
+        if self.MAX17043_is_active:
+            option_font = self.FONTS["PixelOperator_M"]
+            option_text = f"Cell voltage: {self.fuel_gauge.getVCell():.2f} V\n"
+            option_text += f"State of charge: {self.fuel_gauge.getSoc():.1f} %"
+            option_pos = (16, 50)
+            draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255))
         
-        option_font = self.FONTS["PixelOperatorBold_M"]
-        option_text = "BatteryPage()\ncoming soon"
-        option_pos = (160, 130)
-        draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255), anchor='mm')
+        else:
+            icon = self.default_icon
+            self.LCD.screen_img.paste(icon, (160-int(icon.width/2), 45))
+            
+            option_font = self.FONTS["PixelOperator_M"]
+            option_text = "I2C communication error\n"
+            option_text += f"with MAX17043 (addr {hex(self.fuel_gauge.max17043Address)})"
+            option_pos = (16, 100)
+            draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255))
         
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
