@@ -36,12 +36,12 @@ class max17043:
                                 extra={'className':f"{self.__class__.__name__}:"})
         self.busnum = busnum
         self.i2c = SMBus(self.busnum)
-        self.max17043Address = address
+        self._address = address
 
     def __str__(self):
         self.class_logger.debug("String representation of the MAX17043 values",
                                 extra={'className':f"{self.__class__.__name__}:"})
-        rs  = "i2c address is {}\n".format( self.max17043Address )
+        rs  = "i2c address is {}\n".format( self._address )
         rs += "i2c bus is {}\n".format( self.busnum )
         rs += "version is {}\n".format( self.getVersion() )
         rs += "vcell is {} v\n".format( self.getVCell() )
@@ -52,9 +52,9 @@ class max17043:
         return rs
 
     def address(self):
-        self.class_logger.debug(f"Return I2C address: {self.max17043Address}",
+        self.class_logger.debug(f"Return I2C address: {self._address}",
                                 extra={'className':f"{self.__class__.__name__}:"})
-        return self.max17043Address
+        return self._address
 
     def reset(self):
         self.class_logger.debug("Reset module",
@@ -115,7 +115,7 @@ class max17043:
     def __readRegister(self,address):
         self.class_logger.debug("Read register, return 2 bytearray of char",
                                 extra={'className':f"{self.__class__.__name__}:"})
-        return self.i2c.read_i2c_block_data(self.max17043Address, address, 2)
+        return self.i2c.read_i2c_block_data(self._address, address, 2)
 
     def __readConfigRegister(self):
         self.class_logger.debug("Read config register, return 2 bytearray of char",
@@ -125,7 +125,7 @@ class max17043:
     def __writeRegister(self,address,buf):
         self.class_logger.debug("Write to register",
                                 extra={'className':f"{self.__class__.__name__}:"})
-        self.i2c.write_word_data(self.max17043Address, address, buf)
+        self.i2c.write_word_data(self._address, address, buf)
 
     def __writeConfigRegister(self,buf):
         self.class_logger.debug("Write to config register",
