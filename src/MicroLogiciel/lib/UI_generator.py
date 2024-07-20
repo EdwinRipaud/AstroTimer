@@ -21,6 +21,7 @@ from PIL import Image, ImageDraw
 
 import lib.Trigger as trigger
 from lib.MAX17043 import max17043
+from lib.INA219 import INA226
 
 OPERATING_SYSTEM = os.uname()
 RUN_ON_RPi = (OPERATING_SYSTEM.sysname == 'Linux') and (OPERATING_SYSTEM.machine in ['aarch64', 'armv6l'])
@@ -1317,12 +1318,20 @@ class BatteryPage(Info):
         
         self.MAX17043_is_active = True
         try:
-            self.fuel_gauge = max17043()
+            self.fuel_gauge = max17043(busnum=1, address=0x36)
             self.fuel_gauge.getVCell()
         except OSError as e:
-            self.class_logger.error(f"OSError: {e}, I2C device (addr {hex(self.fuel_gauge.max17043Address)}) not responding",
+            self.class_logger.error(f"OSError: {e}, I2C device MAX17043 (addr {hex(self.fuel_gauge._address)}) not responding",
                                     extra={'className':f"{self.__class__.__name__}:"})
             self.MAX17043_is_active = False
+        self.INA219_is_active = True
+        try:
+            self.powermeter = INA226(busnum=1, address=0x45, max_expected_amps=2.7, shunt_ohms=0.03)
+            self.powermeter.configure()
+        except BaseException as e:
+            self.class_logger.error(f"Error: {e}, I2C device INA219 (addr {hex(self.powermeter._address)}) not responding",
+                                    extra={'className':f"{self.__class__.__name__}:"})
+            self.INA219_is_active = False
         return None
     
     def display(self):
@@ -1331,22 +1340,37 @@ class BatteryPage(Info):
         super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
         
+        # TODO: Run display update in a thread like SequenceRunningPage.display_running()
+        # TODO: Split line for static and moving part to add dynamic coloration
+        #       to values: blue, green, orange, red
+        # TODO: Replace value by '--' or 'xx' when a module is not connected and
+        #       display an error message inline in red
+        option_text = ""
         if self.MAX17043_is_active:
-            option_font = self.FONTS["PixelOperator_M"]
-            option_text = f"Cell voltage: {self.fuel_gauge.getVCell():.2f} V\n"
-            option_text += f"State of charge: {self.fuel_gauge.getSoc():.1f} %"
-            option_pos = (16, 50)
-            draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255))
-        
+            option_text += f"Cell voltage: {self.fuel_gauge.getVCell():.2f} V\n"
+            option_text += f"State of charge: {self.fuel_gauge.getSoc():.1f} %\n"
         else:
+            option_text += "\n"
+        if self.INA219_is_active:
+            option_text += f"RPi current: {self.powermeter.current():.1f} mA\n"
+            option_text += f"RPi power: {self.powermeter.power():.1f} mW\n"
+        else:
+            option_text += "\n"
+        
+        option_font = self.FONTS["PixelOperator_M"]
+        option_pos = (16, 50)
+        draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255))
+        
+        if not (self.MAX17043_is_active and self.INA219_is_active):
             icon = self.default_icon
             self.LCD.screen_img.paste(icon, (160-int(icon.width/2), 45))
             
             option_font = self.FONTS["PixelOperator_M"]
             option_text = "I2C communication error\n"
-            option_text += f"with MAX17043 (addr {hex(self.fuel_gauge.max17043Address)})"
+            option_text += f"with MAX17043 (addr {hex(self.fuel_gauge._address)})"
+            option_text += f"and with INA219 (addr {hex(self.powermeter._address)})"
             option_pos = (16, 100)
-            draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255))
+            draw.text(option_pos, option_text, font=option_font, fill=(255, 0, 0))
         
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
