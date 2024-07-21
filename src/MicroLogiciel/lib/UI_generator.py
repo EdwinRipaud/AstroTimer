@@ -103,7 +103,7 @@ class Page:
                                 extra={'className':f"{self.__class__.__name__}:"})
         if direction in self.keys.keys():
             if self.keys[direction] not in ['', 'none']:
-                self.class_logger.debug("callback function '{self.keys[direction]}'",
+                self.class_logger.debug(f"callback function '{self.keys[direction]}'",
                                         extra={'className':f"{self.__class__.__name__}:"})
                 self.action = self.keys_callbacks[self.keys[direction]]
         return None
@@ -1042,7 +1042,7 @@ class SequenceRunningPage(Button):
     def display_running(self):
         Ti = time.time()
         while self.trigger_process.is_alive() and not self.interrupt_event.is_set():
-            if (time.time()-Ti) > min(self.UPDATE_TIMES["display_refresh"], self._time_exp/2):
+            if (time.time()-Ti) > min(self.UPDATE_TIMES["sequence_running"], self._time_exp/2):
                 self.class_logger.info("display screen while running",
                                        extra={'className':f"{self.__class__.__name__}:"})
                 try:
@@ -1294,7 +1294,6 @@ class SettingPage(Menu):
         return None
 
 
-# TODO: Create class BatteryPage() to handle battery information display
 class BatteryPage(Info):
     class_logger = logging.getLogger('classLogger')
     def __init__(self, config, callbacks, general_config):
@@ -1337,33 +1336,24 @@ class BatteryPage(Info):
     def display(self):
         self.class_logger.info("display BatteryPage",
                                extra={'className':f"{self.__class__.__name__}:"})
-        super().display()
-        draw = ImageDraw.Draw(self.LCD.screen_img)
+        self.interrupt_event = threading.Event()
+        self.update_thread = threading.Thread(target=self.update_infos)
+        self.update_thread.start()
+        return None
+    
+    def update_infos(self):
+        self.class_logger.info("Update battery and power infos",
+                               extra={'className':f"{self.__class__.__name__}:"})
         
-        # TODO: Run display update in a thread like SequenceRunningPage.display_running()
         # TODO: Split line for static and moving part to add dynamic coloration
         #       to values: blue, green, orange, red
         # TODO: Replace value by '--' or 'xx' when a module is not connected and
         #       display an error message inline in red
-        option_text = ""
-        if self.MAX17043_is_active:
-            option_text += f"Cell voltage: {self.fuel_gauge.getVCell():.2f} V\n"
-            option_text += f"State of charge: {self.fuel_gauge.getSoc():.1f} %\n"
-        else:
-            option_text += "\n"
-        if self.INA219_is_active:
-            option_text += f"RPi current: {self.powermeter.current():.1f} mA\n"
-            option_text += f"RPi power: {self.powermeter.power():.1f} mW\n"
-        else:
-            option_text += "\n"
-        
-        option_font = self.FONTS["PixelOperator_M"]
-        option_pos = (16, 50)
-        draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255))
+        super().display()
+        draw = ImageDraw.Draw(self.LCD.screen_img)
         
         if not (self.MAX17043_is_active and self.INA219_is_active):
-            icon = self.default_icon
-            self.LCD.screen_img.paste(icon, (160-int(icon.width/2), 45))
+            self.LCD.screen_img.paste(self.default_icon, (160-int(self.default_icon.width/2), 45))
             
             option_font = self.FONTS["PixelOperator_M"]
             option_text = "I2C communication error\n"
@@ -1371,15 +1361,47 @@ class BatteryPage(Info):
             option_text += f"and with INA219 (addr {hex(self.powermeter._address)})"
             option_pos = (16, 100)
             draw.text(option_pos, option_text, font=option_font, fill=(255, 0, 0))
+            self._draw_status_bar()
+            self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+            self.interrupt_event.set()
         
-        self._draw_status_bar()
-        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+        Ti = time.time()
+        while not self.interrupt_event.is_set():
+            if (time.time()-Ti) > self.UPDATE_TIMES['battery_infos']:
+                super().display()
+                draw = ImageDraw.Draw(self.LCD.screen_img)
+                
+                option_text = ""
+                if self.MAX17043_is_active:
+                    option_text += f"Cell voltage: {self.fuel_gauge.getVCell():.2f} V\n"
+                    option_text += f"State of charge: {self.fuel_gauge.getSoc():.1f} %\n"
+                else:
+                    option_text += "Cell voltage: -- V\n"
+                    option_text += "State of charge: -- %\n"
+                if self.INA219_is_active:
+                    option_text += f"RPi current: {self.powermeter.current():.1f} mA\n"
+                    option_text += f"RPi power: {self.powermeter.power():.1f} mW\n"
+                else:
+                    option_text += "RPi current: -- mA\n"
+                    option_text += "RPi power: -- mW\n"
+        
+                option_font = self.FONTS["PixelOperator_M"]
+                option_pos = (16, 50)
+                draw.text(option_pos, option_text, font=option_font, fill=(255, 255, 255))
+                
+                self._draw_status_bar()
+                self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+                Ti = time.time()
+            time.sleep(self.UPDATE_TIMES['thread_scan'])
         return None
     
     def navigate(self, direction):
         self.class_logger.info(f"execute '{self.action.__name__}'",
                                extra={'className':f"{self.__class__.__name__}:"})
         super().navigate(direction)
+        if (self.action.__name__ == "go_back") and not self.interrupt_event.is_set():
+            self.interrupt_event.set()
+            self.update_thread.join()
         self.action()
         return None
 
@@ -1485,7 +1507,7 @@ class SoCMonitor(threading.Thread):
         global BATTERY_SOC
         global BATTERY_VOLTAGE
         fuel_gauge = max17043()
-        Ti = time.time()
+        Ti = time.time()-self.UPDATE_TIMES["battery_SoC"]
         try:
             while not self._stop_event.is_set():
                 if (time.time()-Ti) > self.UPDATE_TIMES["battery_SoC"]:
@@ -1498,7 +1520,7 @@ class SoCMonitor(threading.Thread):
                     pass
                 time.sleep(self.UPDATE_TIMES["thread_scan"])
         except OSError as e:
-            self.class_logger.error(f"OSError: {e}, I2C device (addr {hex(fuel_gauge.max17043Address)}) not responding",
+            self.class_logger.error(f"OSError: {e}, I2C device (addr {hex(fuel_gauge._address)}) not responding",
                                     extra={'className':f"{self.__class__.__name__}:"})
         fuel_gauge.deinit()
         return None

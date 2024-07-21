@@ -51,7 +51,8 @@
     },
     "update_times": {
         "thread_scan": 0.125,
-        "battery_SoC": 15,
-        "display_refresh": 5
+        "battery_SoC": 2.5,
+        "battery_infos":1,
+        "sequence_running": 5
     }
 }
