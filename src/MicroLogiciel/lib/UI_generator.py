@@ -19,15 +19,27 @@ import threading
 import numpy as np
 from PIL import Image, ImageDraw
 
-import lib.Trigger as trigger
-from lib.MAX17043 import max17043
-from lib.INA219 import INA226
 
 OPERATING_SYSTEM = os.uname()
 RUN_ON_RPi = (OPERATING_SYSTEM.sysname == 'Linux') and (OPERATING_SYSTEM.machine in ['aarch64', 'armv6l'])
 
 if RUN_ON_RPi:
     BYPASS_BUILTIN_SCREEN = False
+    from smbus import SMBus
+    bus = SMBus(1)
+    I2C_DEVICE = []
+    for device in range(128):
+        try:
+            bus.read_byte(device)
+            I2C_DEVICE.append(device)
+        except: continue
+    if 0x36 in I2C_DEVICE:
+        from lib.MAX17043 import max17043
+    if 0x40 in I2C_DEVICE:
+        from lib.INA2xx import INA226 as INA2__
+    elif 0x42 in I2C_DEVICE:
+        from lib.INA2xx import INA219 as INA2__
+    import lib.Trigger as trigger
 else:
     BYPASS_BUILTIN_SCREEN = True
 
@@ -548,7 +560,7 @@ class Picture(Page):
         self.LCD.screen_img.paste(self.picture, self.pose)
         return None
 
-# TODO: Create a class Info() to handle general information display
+
 class Info(Page):
     class_logger = logging.getLogger('classLogger')
     def __init__(self, config):
@@ -759,8 +771,6 @@ class ShutdownPage(Button):
         return None
 
 
-# TODO: When sequence is paused by sequenceRunningPage, the class need to check
-#       the sequence_finish boolean to let 'continue' button appear or not
 class SequenceParameterPage(Parameter, Button):
     class_logger = logging.getLogger('classLogger')
     def __init__(self, config, callbacks, general_config):
@@ -991,6 +1001,7 @@ class SequenceRunningPage(Button):
                                     extra={'className':f"{self.__class__.__name__}:"})
             return None
         if self.action.__name__ == "go_back":
+            # TODO: realise GPIO trigger pins
             self.trigger_process.terminate()
             self.interrupt_event.set()
             self.trigger_process.join()
@@ -1325,7 +1336,7 @@ class BatteryPage(Info):
             self.MAX17043_is_active = False
         self.INA219_is_active = True
         try:
-            self.powermeter = INA226(busnum=1, address=0x45, max_expected_amps=2.7, shunt_ohms=0.03)
+            self.powermeter = INA2__(busnum=1, address=0x42, max_expected_amps=2.7, shunt_ohms=30e-3)
             self.powermeter.configure()
         except BaseException as e:
             self.class_logger.error(f"Error: {e}, I2C device INA219 (addr {hex(self.powermeter._address)}) not responding",
@@ -1352,7 +1363,7 @@ class BatteryPage(Info):
         super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
         
-        if not (self.MAX17043_is_active and self.INA219_is_active):
+        if not (self.MAX17043_is_active or self.INA219_is_active):
             self.LCD.screen_img.paste(self.default_icon, (160-int(self.default_icon.width/2), 45))
             
             option_font = self.FONTS["PixelOperator_M"]
@@ -1506,7 +1517,7 @@ class SoCMonitor(threading.Thread):
                                extra={'className':f"{self.__class__.__name__}:"})
         global BATTERY_SOC
         global BATTERY_VOLTAGE
-        fuel_gauge = max17043()
+        fuel_gauge = max17043(busnum=1, address=0x36)
         Ti = time.time()-self.UPDATE_TIMES["battery_SoC"]
         try:
             while not self._stop_event.is_set():

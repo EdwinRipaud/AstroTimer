@@ -24,18 +24,18 @@ lib_logger.debug("Imported file")
 class max17043:
     class_logger = logging.getLogger('classLogger')
     
-    REGISTER_VCELL = 0X02
-    REGISTER_SOC = 0X04
-    REGISTER_MODE = 0X06
+    REGISTER_VCELL   = 0X02
+    REGISTER_SOC     = 0X04
+    REGISTER_MODE    = 0X06
     REGISTER_VERSION = 0X08
-    REGISTER_CONFIG = 0X0C
+    REGISTER_CONFIG  = 0X0C
     REGISTER_COMMAND = 0XFE
 
     def __init__(self, busnum=1, address=0x36):
         self.class_logger.debug("initialise MAX17043 module",
                                 extra={'className':f"{self.__class__.__name__}:"})
         self.busnum = busnum
-        self.i2c = SMBus(self.busnum)
+        self._i2c = SMBus(self.busnum)
         self._address = address
 
     def __str__(self):
@@ -115,7 +115,7 @@ class max17043:
     def __readRegister(self,address):
         self.class_logger.debug("Read register, return 2 bytearray of char",
                                 extra={'className':f"{self.__class__.__name__}:"})
-        return self.i2c.read_i2c_block_data(self._address, address, 2)
+        return self._i2c.read_i2c_block_data(self._address, address, 2)
 
     def __readConfigRegister(self):
         self.class_logger.debug("Read config register, return 2 bytearray of char",
@@ -125,7 +125,7 @@ class max17043:
     def __writeRegister(self,address,buf):
         self.class_logger.debug("Write to register",
                                 extra={'className':f"{self.__class__.__name__}:"})
-        self.i2c.write_word_data(self._address, address, buf)
+        self._i2c.write_word_data(self._address, address, buf)
 
     def __writeConfigRegister(self,buf):
         self.class_logger.debug("Write to config register",
@@ -135,4 +135,4 @@ class max17043:
     def deinit(self):
         self.class_logger.debug("Turn off module",
                                 extra={'className':f"{self.__class__.__name__}:"})
-        self.i2c.close()
+        self._i2c.close()
