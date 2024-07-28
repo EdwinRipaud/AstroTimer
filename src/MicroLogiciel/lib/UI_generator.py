@@ -33,6 +33,7 @@ if RUN_ON_RPi:
             bus.read_byte(device)
             I2C_DEVICE.append(device)
         except: continue
+    # TODO: get I2C device address from config file
     if 0x36 in I2C_DEVICE:
         from lib.MAX17043 import max17043
     if 0x40 in I2C_DEVICE:
@@ -1001,11 +1002,11 @@ class SequenceRunningPage(Button):
                                     extra={'className':f"{self.__class__.__name__}:"})
             return None
         if self.action.__name__ == "go_back":
-            # TODO: realise GPIO trigger pins
             self.trigger_process.terminate()
             self.interrupt_event.set()
             self.trigger_process.join()
             self.display_thread.join()
+            trigger._release_gpio()
             self.class_logger.warning("Interrupt sequence",
                                     extra={'className':f"{self.__class__.__name__}:"})
             self.action = self.keys_callbacks['go_back']

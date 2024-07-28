@@ -32,7 +32,7 @@ tmp_file = "../tmp/running_parameters.tmp"
 tmp_locker = "../tmp/tmp.lock"
 lock = filelock.FileLock(tmp_locker)
 
-def keep_track(taken=-1, remaining=-1):
+def _keep_track(taken=-1, remaining=-1):
     lib_logger.info("Saving current parameters")
     keep_track_dict = {"taken":taken, "remaining":remaining}
     with lock:
@@ -119,7 +119,7 @@ if RUN_ON_RPi:
         lib_logger.info(f"Sequence parameters: exposure={parameters['exposure']['value']}{parameters['exposure']['unit']}, \
 shots={parameters['shots']['value']}, interval={parameters['interval']['value']}{parameters['interval']['unit']}")
     
-        keep_track(taken=0, remaining=nb_shots)
+        _keep_track(taken=0, remaining=nb_shots)
         
         # Wake-up the camera
         GPIO.output(PIN_FOCUS, GPIO.HIGH)
@@ -137,7 +137,7 @@ shots={parameters['shots']['value']}, interval={parameters['interval']['value']}
             # Set pin low to save the picture
             GPIO.output([PIN_FOCUS, PIN_SHUTTER],
                         [GPIO.LOW, GPIO.LOW])
-            keep_track(taken=k, remaining=nb_shots-k)
+            _keep_track(taken=k, remaining=nb_shots-k)
             lib_logger.debug("sleep")
             time.sleep(interval_time)
         
@@ -151,9 +151,25 @@ shots={parameters['shots']['value']}, interval={parameters['interval']['value']}
                     [GPIO.LOW, GPIO.LOW])
         time.sleep(offset_time)
         return None
+    
+    def _release_gpio():
+        lib_logger.debug("release GPIO pins")
+        # Set pin state
+        GPIO.output(PIN_FOCUS, GPIO.HIGH)
+        GPIO.output(PIN_SHUTTER, GPIO.HIGH)
+        time.sleep(50e-3)
+        # Release pin
+        GPIO.output(PIN_FOCUS, GPIO.LOW)
+        GPIO.output(PIN_SHUTTER, GPIO.LOW)
+        time.sleep(50e-3)
+        return None
 else:
     lib_logger.warning("Cannot trigger sequence on a non-RaspberryPi board")
     def execute_sequence(parameters:dict):
-        lib_logger.error("Impossible to run execute_sequence")
+        lib_logger.error("Impossible to run execute_sequence()")
         lib_logger.info(f"Input parameters: {parameters}")
+        return None
+    
+    def _release_gpio():
+        lib_logger.error("Impossible to run _release_gpio()")
         return None
