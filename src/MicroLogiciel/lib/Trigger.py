@@ -32,7 +32,7 @@ tmp_file = "../tmp/running_parameters.tmp"
 tmp_locker = "../tmp/tmp.lock"
 lock = filelock.FileLock(tmp_locker)
 
-def _keep_track(taken=-1, remaining=-1):
+def _keep_track(taken:int=-1, remaining:int=-1)->None:
     lib_logger.info("Saving current parameters")
     keep_track_dict = {"taken":taken, "remaining":remaining}
     with lock:
@@ -40,11 +40,11 @@ def _keep_track(taken=-1, remaining=-1):
             json.dump(keep_track_dict, f)
     return None
 
-def _check_pattern(fmt, unit):
+def _check_pattern(fmt, unit)->bool:
     patterns = [f'({unit})', f'({unit}{unit})', f'(*{unit})', f'(*{unit}{unit})']
     return any([pattern in fmt for pattern in patterns])
 
-def time2str(seconds:float, fmt='(hh):(mm):(ss)'):
+def time2str(seconds:float, fmt:str='(hh):(mm):(ss)')->str:
     """
     Generate a time formated string of the input timedelta
 
@@ -101,7 +101,7 @@ if RUN_ON_RPi:
     GPIO.setup(PIN_SHUTTER, GPIO.OUT)
     GPIO.setup(PIN_FOCUS, GPIO.OUT)
     
-    def execute_sequence(parameters:dict):
+    def execute_sequence(parameters:dict)->None:
         os.makedirs(os.path.dirname(tmp_file), exist_ok=True)
         try:
             offset_time = parameters['offset']['value'] * UNIT_CONVERTER[parameters['offset']['unit']]
@@ -152,7 +152,7 @@ shots={parameters['shots']['value']}, interval={parameters['interval']['value']}
         time.sleep(offset_time)
         return None
     
-    def _release_gpio():
+    def _release_gpio()->None:
         lib_logger.debug("release GPIO pins")
         # Set pin state
         GPIO.output(PIN_FOCUS, GPIO.HIGH)
@@ -165,11 +165,11 @@ shots={parameters['shots']['value']}, interval={parameters['interval']['value']}
         return None
 else:
     lib_logger.warning("Cannot trigger sequence on a non-RaspberryPi board")
-    def execute_sequence(parameters:dict):
+    def execute_sequence(parameters:dict)->None:
         lib_logger.error("Impossible to run execute_sequence()")
         lib_logger.info(f"Input parameters: {parameters}")
         return None
     
-    def _release_gpio():
+    def _release_gpio()->None:
         lib_logger.error("Impossible to run _release_gpio()")
         return None

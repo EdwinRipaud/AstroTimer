@@ -40,7 +40,8 @@ app_logger.info("New execution of the AstroTimer program")
 
 class MainApp:
     class_logger = logging.getLogger('classLogger')
-    def __init__(self, UI_config_path):
+    
+    def __init__(self, UI_config_path:str)->None:
         self.class_logger.debug("initalise MainApp",
                                 extra={'className':f"{self.__class__.__name__}:"})
         # read config_general.json file to initialise parameters
@@ -78,7 +79,7 @@ class MainApp:
             self.listener.start()
         return None
     
-    def on_press(self, key_name):
+    def on_press(self, key_name)->None:
         self.class_logger.debug("handle keys callbacks",
                                 extra={'className':f"{self.__class__.__name__}:"})
         key = self.general_config['GPIO_5_way_switch'][key_name] if RUN_ON_RPi else key_name.name
@@ -95,14 +96,14 @@ class MainApp:
             pass
         return None
     
-    def run(self):
+    def run(self)->None:
         self.class_logger.debug("Running the MainApp",
                                 extra={'className':f"{self.__class__.__name__}:"})
         while not self.page_manager.QUIT:
             continue
         return None
     
-    def clean_stop(self):
+    def clean_stop(self)->None:
         self.class_logger.debug("Cleanning MainApp",
                                 extra={'className':f"{self.__class__.__name__}:"})
         self.page_manager.current_page.LCD.ClearScreen()

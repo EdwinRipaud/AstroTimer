@@ -87,7 +87,7 @@ class INA219:
     # to guarantee that current overflow can always be detected.
     __CURRENT_LSB_FACTOR    = 32800
     
-    def __init__(self, busnum=1, address=0x42, max_expected_amps=None, shunt_ohms=10e-3):
+    def __init__(self, busnum:int=1, address:int=0x42, max_expected_amps:float=None, shunt_ohms:float=10e-3)->None:
         """Construct the class.
         
         Pass in the resistance of the shunt resistor and the maximum expected
@@ -110,9 +110,9 @@ class INA219:
         self._min_device_current_lsb = self._calculate_min_current_lsb()
         self._gain = None
         self._auto_gain_enabled = False
+        return None
     
-    def configure(self, voltage_range=RANGE_32V, gain=GAIN_AUTO,
-                  bus_adc=ADC_12BIT, shunt_adc=ADC_12BIT):
+    def configure(self, voltage_range:int=RANGE_32V, gain:int=GAIN_AUTO, bus_adc:int=ADC_12BIT, shunt_adc:int=ADC_12BIT)->None:
         """Configure and calibrate how the INA219 will take measurements.
         
         Arguments:
@@ -168,15 +168,16 @@ class INA219:
             self.__BUS_RANGE[voltage_range], self.__GAIN_VOLTS[self._gain],
             self._max_expected_amps)
         self._configure(voltage_range, self._gain, bus_adc, shunt_adc)
+        return None
     
-    def voltage(self):
+    def voltage(self)->float:
         """Return the bus voltage in volts."""
         self.class_logger.debug("Get bus voltage",
                                 extra={'className':f"{self.__class__.__name__}:"})
         value = self._voltage_register()
         return float(value) * self.__BUS_MILLIVOLTS_LSB / 1000
     
-    def supply_voltage(self):
+    def supply_voltage(self)->float:
         """Return the bus supply voltage in volts.
         
         This is the sum of the bus voltage and shunt voltage. A
@@ -186,7 +187,7 @@ class INA219:
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.voltage() + (float(self.shunt_voltage()) / 1000)
     
-    def current(self):
+    def current(self)->float:
         """Return the bus current in milliamps.
         
         A DeviceRangeError exception is thrown if current overflow occurs.
@@ -196,7 +197,7 @@ class INA219:
         self._handle_current_overflow()
         return self._current_register() * self._current_lsb * 1000
     
-    def power(self):
+    def power(self)->float:
         """Return the bus power consumption in milliwatts.
         
         A DeviceRangeError exception is thrown if current overflow occurs.
@@ -206,7 +207,7 @@ class INA219:
         self._handle_current_overflow()
         return self._power_register() * self._power_lsb * 1000
     
-    def shunt_voltage(self):
+    def shunt_voltage(self)->float:
         """Return the shunt voltage in millivolts.
         
         A DeviceRangeError exception is thrown if current overflow occurs.
@@ -216,23 +217,25 @@ class INA219:
         self._handle_current_overflow()
         return self._shunt_voltage_register() * self.__SHUNT_MILLIVOLTS_LSB
     
-    def sleep(self):
+    def sleep(self)->None:
         """Put the INA219 into power down mode."""
         self.class_logger.debug("Put module into power down mode",
                                 extra={'className':f"{self.__class__.__name__}:"})
         configuration = self._read_configuration()
         self._configuration_register(configuration & 0xFFF8)
+        return None
         
-    def wake(self):
+    def wake(self)->None:
         """Wake the INA219 from power down mode."""
         self.class_logger.debug("Wake module from power down mode",
                                 extra={'className':f"{self.__class__.__name__}:"})
         configuration = self._read_configuration()
         self._configuration_register(configuration | 0x0007)
         # 40us delay to recover from powerdown (p14 of spec)
-        time.sleep(0.00004)
+        time.sleep(40e-6)
+        return None
         
-    def current_overflow(self):
+    def current_overflow(self)->bool:
         """Return true if the sensor has detect current overflow.
         
         In this case the current and power values are invalid.
@@ -241,20 +244,21 @@ class INA219:
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self._has_current_overflow()
     
-    def reset(self):
+    def reset(self)->None:
         """Reset the INA219 to its default configuration."""
         self.class_logger.debug("Reset module to default configuration",
                                 extra={'className':f"{self.__class__.__name__}:"})
         self._configuration_register(1 << self.__RST)
+        return None
     
-    def is_conversion_ready(self):
+    def is_conversion_ready(self)->bool:
         """Check if conversion of a new reading has occured."""
         self.class_logger.debug("Check if conversion of a new reading has occured",
                                 extra={'className':f"{self.__class__.__name__}:"})
         cnvr = self._read_voltage_register() & self.__CNVR
         return (cnvr == self.__CNVR)
     
-    def _handle_current_overflow(self):
+    def _handle_current_overflow(self)->None:
         self.class_logger.debug("Handle current overflow",
                                 extra={'className':f"{self.__class__.__name__}:"})
         if self._auto_gain_enabled:
@@ -263,8 +267,9 @@ class INA219:
         else:
             if self._has_current_overflow():
                 raise DeviceRangeError(self.__GAIN_VOLTS[self._gain])
+        return None
     
-    def _determine_gain(self, max_expected_amps):
+    def _determine_gain(self, max_expected_amps:float)->float:
         self.class_logger.debug("Detemine gain",
                                 extra={'className':f"{self.__class__.__name__}:"})
         shunt_v = max_expected_amps * self._shunt_ohms
@@ -275,7 +280,7 @@ class INA219:
         gain = min(v for v in self.__GAIN_VOLTS if v > shunt_v)
         return self.__GAIN_VOLTS.index(gain)
     
-    def _increase_gain(self):
+    def _increase_gain(self)->None:
         self.class_logger.debug('Current overflow detected - attempting to increase gain',
                                 extra={'className':f"{self.__class__.__name__}:"})
         gain = self._read_gain()
@@ -290,8 +295,9 @@ class INA219:
         else:
             self.logger.info('Device limit reach, gain cannot be increased')
             raise DeviceRangeError(self.__GAIN_VOLTS[gain], True)
+        return None
     
-    def _configure(self, voltage_range, gain, bus_adc, shunt_adc):
+    def _configure(self, voltage_range:int, gain:int, bus_adc:int, shunt_adc:int)->None:
         self.class_logger.debug("Configuration values",
                                 extra={'className':f"{self.__class__.__name__}:"})
         configuration = (
@@ -299,9 +305,9 @@ class INA219:
             bus_adc << self.__BADC1 | shunt_adc << self.__SADC1 |
             self.__CONT_SH_BUS)
         self._configuration_register(configuration)
+        return None
     
-    def _calibrate(self, bus_volts_max, shunt_volts_max,
-                   max_expected_amps=None):
+    def _calibrate(self, bus_volts_max:float, shunt_volts_max:float, max_expected_amps:float=None)->None:
         """
         Example of calibration which uses the highest precision
         for current measurement (0.1mA), at the expense of
@@ -370,8 +376,9 @@ class INA219:
         self.class_logger.info(f"calibration: 0x{calibration:04x} ({calibration:d})",
                                 extra={'className':f"{self.__class__.__name__}:"})
         self._calibration_register(calibration)
+        return None
         
-    def _determine_current_lsb(self, max_expected_amps, max_possible_amps):
+    def _determine_current_lsb(self, max_expected_amps:float, max_possible_amps:float)->float:
         self.class_logger.debug("Determine current LSB",
                                 extra={'className':f"{self.__class__.__name__}:"})
         if max_expected_amps is not None:
@@ -391,87 +398,92 @@ class INA219:
             current_lsb = self._min_device_current_lsb
         return current_lsb
     
-    def _configuration_register(self, register_value):
+    def _configuration_register(self, register_value:int)->None:
         self.class_logger.debug(f"configuration: 0x{register_value:04x}",
                                 extra={'className':f"{self.__class__.__name__}:"})
         self.__write_register(self.__REG_CONFIG, register_value)
+        return None
         
-    def _read_configuration(self):
+    def _read_configuration(self)->int:
         self.class_logger.debug("read configuration register",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__read_register(self.__REG_CONFIG)
     
-    def _calculate_min_current_lsb(self):
+    def _calculate_min_current_lsb(self)->float:
         self.class_logger.debug("calculate minimum current LSB",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__CALIBRATION_FACTOR / (self._shunt_ohms * self.__MAX_CALIBRATION_VALUE)
         
-    def _read_gain(self):
+    def _read_gain(self)->int:
         configuration = self._read_configuration()
         gain = (configuration & 0x1800) >> self.__PG0
         self.class_logger.debug(f"gain is currently: {self.__GAIN_VOLTS[gain]:.2f}V",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return gain
     
-    def _configure_gain(self, gain):
+    def _configure_gain(self, gain:int)->None:
         configuration = self._read_configuration()
         configuration = configuration & 0xE7FF
         self._configuration_register(configuration | (gain << self.__PG0))
         self._gain = gain
         self.class_logger.debug(f"gain set to: {self.__GAIN_VOLTS[gain]:.2f}V",
                                 extra={'className':f"{self.__class__.__name__}:"})
+        return None
     
-    def _calibration_register(self, register_value):
+    def _calibration_register(self, register_value:int)->None:
         self.class_logger.debug(f"calibration: 0x{register_value:04x}",
                                 extra={'className':f"{self.__class__.__name__}:"})
         self.__write_register(self.__REG_CALIBRATION, register_value)
+        return None
     
-    def _has_current_overflow(self):
+    def _has_current_overflow(self)->bool:
         self.class_logger.debug("get current overflow value",
                                 extra={'className':f"{self.__class__.__name__}:"})
         ovf = self._read_voltage_register() & self.__OVF
         return (ovf == 1)
     
-    def _voltage_register(self):
+    def _voltage_register(self)->int:
         self.class_logger.debug("voltage register",
                                 extra={'className':f"{self.__class__.__name__}:"})
         register_value = self._read_voltage_register()
         return register_value >> 3
     
-    def _read_voltage_register(self):
+    def _read_voltage_register(self)->int:
         self.class_logger.debug("read voltage register",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__read_register(self.__REG_BUSVOLTAGE)
     
-    def _current_register(self):
+    def _current_register(self)->int:
         self.class_logger.debug("current register",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__read_register(self.__REG_CURRENT, True)
     
-    def _shunt_voltage_register(self):
+    def _shunt_voltage_register(self)->int:
         self.class_logger.debug("shunt voltage register",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__read_register(self.__REG_SHUNTVOLTAGE, True)
     
-    def _power_register(self):
+    def _power_register(self)->int:
         self.class_logger.debug("power register",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__read_register(self.__REG_POWER)
     
-    def __validate_voltage_range(self, voltage_range):
+    def __validate_voltage_range(self, voltage_range:int)->None:
         self.class_logger.debug("validate voltage register",
                                 extra={'className':f"{self.__class__.__name__}:"})
         if voltage_range > len(self.__BUS_RANGE) - 1:
             raise ValueError('Invalid voltage range, must be one of: RANGE_16V, RANGE_32V')
+        return None
             
-    def __write_register(self, register, register_value):
+    def __write_register(self, register:int, register_value:int)->None:
         register_bytes = self.__to_bytes(register_value)
         self.class_logger.debug(f"write register 0x{register:02x}: 0x{register_value:04x} "
                                 f"0b{f'{register_value:b}':0>16}",
                                 extra={'className':f"{self.__class__.__name__}:"})
         self._i2c.write_i2c_block_data(self._address, register, register_bytes)
+        return None
     
-    def __read_register(self, register, negative_value_supported=False):
+    def __read_register(self, register:int, negative_value_supported:bool=False)->int:
         value = self._i2c.read_word_data(self._address, register) & 0xFFFF
         # Convert as big endian (see p14 of the spec)
         value = ((value << 8) & 0xFF00) + (value >> 8)
@@ -482,7 +494,7 @@ class INA219:
                                 extra={'className':f"{self.__class__.__name__}:"})
         return value
     
-    def __to_bytes(self, register_value):
+    def __to_bytes(self, register_value)->int:
         return [(register_value >> 8) & 0xFF, register_value & 0xFF]
 
 
@@ -561,7 +573,7 @@ class INA226:
     __MAX_CURRENT_VALUE     = 0x7FFF
     __CURRENT_LSB_FACTOR    = 32768
 
-    def __init__(self, busnum=1, address=0x40, max_expected_amps=None, shunt_ohms=30e-3):
+    def __init__(self, busnum:int=1, address:int=0x40, max_expected_amps:float=None, shunt_ohms:float=30e-3)->None:
         """Construct the class.
         
         Pass in the resistance of the shunt resistor and the maximum expected
@@ -580,8 +592,9 @@ class INA226:
         self._shunt_ohms = shunt_ohms
         self._max_expected_amps = max_expected_amps
         self._min_device_current_lsb = self._calculate_min_current_lsb()
+        return None
         
-    def configure(self, avg_mode=AVG_1BIT, bus_ct=VCT_8244us_BIT, shunt_ct=VCT_8244us_BIT):
+    def configure(self, avg_mode:int=AVG_1BIT, bus_ct:int=VCT_8244us_BIT, shunt_ct:int=VCT_8244us_BIT)->None:
         """Configure and calibrate how the INA226 will take measurements.
         """
         self.class_logger.debug(f'shunt ohms: {self._shunt_ohms:.3f}, bus max volts: {self.__BUS_RANGE:.1f}, '
@@ -597,15 +610,16 @@ class INA226:
             avg_mode << self.__AVG0 | bus_ct << self.__VBUSCT0 |
             shunt_ct << self.__VSHCT0 | self.__CONT_SH_BUS | 1 << 14)
         self._configuration_register(configuration)
+        return None
         
-    def voltage(self):
+    def voltage(self)->float:
         """Return the bus voltage in volts."""
         self.class_logger.debug("Get bus voltage",
                                 extra={'className':f"{self.__class__.__name__}:"})
         value = self._voltage_register()
         return float(value) * self.__BUS_MILLIVOLTS_LSB / 1000
     
-    def supply_voltage(self):
+    def supply_voltage(self)->float:
         """Return the bus supply voltage in volts.
         
         This is the sum of the bus voltage and shunt voltage. A
@@ -615,7 +629,7 @@ class INA226:
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.voltage() + (float(self.shunt_voltage()) / 1000)
     
-    def current(self):
+    def current(self)->float:
         """Return the bus current in milliamps.
         
         A DeviceRangeError exception is thrown if current overflow occurs.
@@ -625,7 +639,7 @@ class INA226:
         self._handle_current_overflow()
         return self._current_register() * self._current_lsb * 1000
     
-    def power(self):
+    def power(self)->float:
         """Return the bus power consumption in milliwatts.
         
         A DeviceRangeError exception is thrown if current overflow occurs.
@@ -635,7 +649,7 @@ class INA226:
         self._handle_current_overflow()
         return self._power_register() * self._power_lsb * 1000
     
-    def shunt_voltage(self):
+    def shunt_voltage(self)->float:
         """Return the shunt voltage in millivolts.
         
         A DeviceRangeError exception is thrown if current overflow occurs.
@@ -645,21 +659,23 @@ class INA226:
         self._handle_current_overflow()
         return self._shunt_voltage_register() * self.__SHUNT_MILLIVOLTS_LSB
     
-    def sleep(self):
+    def sleep(self)->None:
         """Put the INA226 into power down mode."""
         self.class_logger.debug("Put module into power down mode",
                                 extra={'className':f"{self.__class__.__name__}:"})
         configuration = self._read_configuration()
         self._configuration_register(configuration & 0xFFF8)
+        return None
         
-    def wake(self, mode=__CONT_SH_BUS):
+    def wake(self, mode:int=__CONT_SH_BUS)->None:
         """Wake the INA226 from power down mode."""
         self.class_logger.debug("Wake the module from power down",
                                 extra={'className':f"{self.__class__.__name__}:"})
         configuration = self._read_configuration()
         self._configuration_register(configuration & 0xFFF8 | mode)
+        return None
         
-    def current_overflow(self):
+    def current_overflow(self)->int:
         """Return true if the sensor has detect current overflow.
         
         In this case the current and power values are invalid.
@@ -668,7 +684,7 @@ class INA226:
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self._has_current_overflow()
     
-    def reset(self):
+    def reset(self)->None:
         """Reset the INA226 to its default configuration."""
         self._configuration_register(1 << self.__RST)
         
@@ -690,8 +706,9 @@ class INA226:
         self.class_logger.info(f"die id: 0x{self.__REG_DIE_ID:02x}, "
                                f"value: 0x{self._die_id():04x}",
                                 extra={'className':f"{self.__class__.__name__}:"})
+        return None
         
-    def set_low_battery(self, low_limit=3, high_level_trigger=True):
+    def set_low_battery(self, low_limit:float=3, high_level_trigger:bool=True)->None:
         self.class_logger.debug("Set low battery level",
                                 extra={'className':f"{self.__class__.__name__}:"})
         self._limit_register(int(low_limit * 1000 / self.__BUS_MILLIVOLTS_LSB))
@@ -699,8 +716,9 @@ class INA226:
             self._mask_register(1 << 12 | 3)
         else:
             self._mask_register(1 << 12 | 1)
+        return None
             
-    def _calibrate(self, bus_volts_max, shunt_volts_max, max_expected_amps=None):
+    def _calibrate(self, bus_volts_max:float, shunt_volts_max:float, max_expected_amps:float=None)->None:
         self.class_logger.debug(f'calibrate called with: bus max volts: {bus_volts_max:.1f}V, '
                                 f'max shunt volts: {shunt_volts_max:.2f}V, '
                                 f'{max_expected_amps if max_expected_amps else 0:.3f}',
@@ -730,8 +748,9 @@ class INA226:
         self.class_logger.debug(f"calibration: {calibration:04x} ({calibration})",
                                 extra={'className':f"{self.__class__.__name__}:"})
         self._calibration_register(calibration)
+        return None
     
-    def _determine_current_lsb(self, max_expected_amps, max_possible_amps):
+    def _determine_current_lsb(self, max_expected_amps:float, max_possible_amps:float)->float:
         self.class_logger.debug("Determine current LSB",
                                 extra={'className':f"{self.__class__.__name__}:"})
         if max_expected_amps is not None:
@@ -755,12 +774,12 @@ class INA226:
                                     extra={'className':f"{self.__class__.__name__}:"})
         return current_lsb
     
-    def _calculate_min_current_lsb(self):
+    def _calculate_min_current_lsb(self)->float:
         self.class_logger.debug("Calculate minimum current LSB",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__CALIBRATION_FACTOR / (self._shunt_ohms * self.__MAX_CALIBRATION_VALUE)
                
-    def _has_current_overflow(self):
+    def _has_current_overflow(self)->int:
         self.class_logger.debug("Get overflow flag value",
                                 extra={'className':f"{self.__class__.__name__}:"})
         ovf = self._read_mask_register() >> self.__OVF & 1
@@ -773,92 +792,98 @@ class INA226:
         cnvr = self._read_mask_register() >> self.__CVRF & 1
         return cnvr
     
-    def is_low_battery(self):
+    def is_low_battery(self)->int:
         self.class_logger.debug("Check if battery is low",
                                 extra={'className':f"{self.__class__.__name__}:"})
         bul = self._read_mask_register() >> self.__BUL & 1
         return bul
     
-    def _handle_current_overflow(self):
+    def _handle_current_overflow(self)->None:
         self.class_logger.debug("Handle current overflow",
                                 extra={'className':f"{self.__class__.__name__}:"})
         if self._has_current_overflow():
             raise DeviceRangeError(self.__GAIN_VOLTS)
+        return None
             
-    def _configuration_register(self, register_value):
+    def _configuration_register(self, register_value:int)->None:
         self.class_logger.debug(f"configuration: 0x{register_value:04x}",
                                 extra={'className':f"{self.__class__.__name__}:"})
         self.__write_register(self.__REG_CONFIG, register_value)
+        return None
         
     def _read_configuration(self):
         self.class_logger.debug("Read configuration",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__read_register(self.__REG_CONFIG)
     
-    def _voltage_register(self):
+    def _voltage_register(self)->int:
         self.class_logger.debug("Read voltage register",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__read_register(self.__REG_BUSVOLTAGE)
     
-    def _current_register(self):
+    def _current_register(self)->int:
         self.class_logger.debug("read current register",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__read_register(self.__REG_CURRENT, True)
     
-    def _shunt_voltage_register(self):
+    def _shunt_voltage_register(self)->int:
         self.class_logger.debug("Read shunt voltage register",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__read_register(self.__REG_SHUNTVOLTAGE, True)
     
-    def _power_register(self):
+    def _power_register(self)->int:
         self.class_logger.debug("Read power consumption register",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__read_register(self.__REG_POWER)
     
-    def _calibration_register(self, register_value):
+    def _calibration_register(self, register_value:int)->None:
         self.class_logger.debug(f"calibration: 0x{register_value:04x}",
                                 extra={'className':f"{self.__class__.__name__}:"})
         self.__write_register(self.__REG_CALI, register_value)
+        return None
         
-    def _read_mask_register(self):
+    def _read_mask_register(self)->int:
         self.class_logger.debug("Read mask register",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__read_register(self.__REG_MASK)
     
-    def _mask_register(self, register_value):
+    def _mask_register(self, register_value:int)->None:
         self.class_logger.debug(f"mask/enable: 0x{register_value:04x}",
                                 extra={'className':f"{self.__class__.__name__}:"})
         self.__write_register(self.__REG_MASK, register_value)
+        return None
         
-    def _read_limit_register(self):
+    def _read_limit_register(self)->int:
         return self.__read_register(self.__REG_LIMIT)
     
-    def _limit_register(self, register_value):
+    def _limit_register(self, register_value:int)->None:
         self.class_logger.debug(f"limit value: 0x{register_value:04x}",
                                 extra={'className':f"{self.__class__.__name__}:"})
         self.__write_register(self.__REG_LIMIT, register_value)
+        return None
         
-    def _manufacture_id(self):
+    def _manufacture_id(self)->int:
         self.class_logger.debug("Get manufacturer ID",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__read_register(self.__REG_MANUFACTURER_ID)
     
-    def _die_id(self):
+    def _die_id(self)->int:
         self.class_logger.debug("Get die ID",
                                 extra={'className':f"{self.__class__.__name__}:"})
         return self.__read_register(self.__REG_DIE_ID)
     
-    def to_bytes(self, register_value):
+    def to_bytes(self, register_value:int)->int:
         return [(register_value >> 8) & 0xFF, register_value & 0xFF]
     
-    def __write_register(self, register, register_value):
+    def __write_register(self, register:int, register_value:int)->None:
         register_bytes = self.to_bytes(register_value)
         self.class_logger.debug(f"write register 0x{register:02x}: 0x{register_value:04x} "
                                 f"0b{f'{register_value:b}':0>16}",
                                 extra={'className':f"{self.__class__.__name__}:"})
         self._i2c.write_i2c_block_data(self._address, register, register_bytes)
+        return None
         
-    def __read_register(self, register, negative_value_supported=False):
+    def __read_register(self, register:int, negative_value_supported:bool=False)->int:
         result = self._i2c.read_word_data(self._address, register) & 0xFFFF
         register_value = ((result << 8) & 0xFF00) + (result >> 8)
         if negative_value_supported:
@@ -876,7 +901,7 @@ class DeviceRangeError(Exception):
     __DEV_RNG_ERR = ('Current out of range (overflow), '
                      'for gain %.2fV')
     
-    def __init__(self, gain_volts, device_max=False):
+    def __init__(self, gain_volts:int, device_max:bool=False)->None:
         """Construct a DeviceRangeError."""
         msg = self.__DEV_RNG_ERR % gain_volts
         if device_max:
@@ -884,3 +909,4 @@ class DeviceRangeError(Exception):
         super(DeviceRangeError, self).__init__(msg)
         self.gain_volts = gain_volts
         self.device_limit_reached = device_max
+        return None
