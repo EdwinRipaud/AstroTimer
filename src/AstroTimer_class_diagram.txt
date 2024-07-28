@@ -4,20 +4,25 @@ title: AstroTimer class diagram
 classDiagram
     class MainApp{
         +PageManager page_manager
+
         +on_press(key)
         +run()
         +clean_stop()
     }
     
     class PageManager{
-        +bool QUIT
-        +dict pages
-        +int current_page
-        +list page_stack
-        +dict class_dict
-        +dict keys_callbacks
-        +dict page_callbacks
-        +dict callbacks
+	-dict       _general_config
+        +bool       QUIT
+        +dict       pages
+        +int        current_page
+        +list       page_stack
+        +dict       class_dict
+        +dict       keys_callbacks
+        +dict       page_callbacks
+        +dict       callbacks
+	+Event      stop_event
+	+SoCMonitor battery_Soc_thread
+
         +load_pages()
         +show_page(page_key)
         +go_back()
@@ -25,30 +30,25 @@ classDiagram
     }
     
     class Page{
-        +string title
+        +str  title
         +dict keys
         +dict page_callbacks
-        +dict general_config
-        +Image default_icon
-        +string PATHS
-        +ImageFont FONTS
-        +dict BATTERY_DICT
-        +LCD_1inch47 LCD
-        +float BATTERY_LEVEL
-        +string STATUS_TXT
+        +str  STATUS-TXT
         
         -_get_battery_icon()
         -_draw_status_bar()
         +display()
-        +navigate()
+        +navigate(direction)
     }
     
     namespace BasePagesElements {
         class Menu{
             -dict _config
             +dict menu_options
-            +int current_menu
+            +int  current_menu
+            +dict menu_parameters
             +dict keys_callbacks
+
             +menu_up()
             +menu_down()
             +menu_select()
@@ -58,12 +58,12 @@ classDiagram
         class Button{
             -dict _config
             +dict button_config
-            +dict button_parameters
             +dict button_options
-            +int current_button
+            +int  current_button
             +bool button_active
             +dict button_pose
             +dict keys_callbacks
+
             +button_up()
             +button_down()
             +button_select()
@@ -73,27 +73,28 @@ classDiagram
         class Parameter{
             -dict _config
             +dict parameter_config
-            +dict parameter_parameters
             +dict parameter_options
-            +int current_parameter
-            +int parameter_seleceted
+            +int  current_parameter
+            +int  parameter_selected
             +bool parameter_active
             +dict parameters_pose
             +dict keys_callbacks
+
             +parameter_up()
             +parameter_down()
             +parameter_select()
             +parameter_increment()
             +parameter_decrement()
-            +navigate()
+            +navigate(direction)
             +display()
         }
         
         class Picture{
-            -dict _config
-            +dict picture_options
+            -dict  _config
+            +dict  picture_options
             +Image picture
-            +dict keys_callbacks
+            +dict  keys_callbacks
+
             -_set_pose()
             -_generate_QRCode(text)
             +display()
@@ -102,7 +103,8 @@ classDiagram
         class Info{
             -dict _config
             +dict keys_callbacks
-            +navigate()
+
+            +navigate(direction)
             +display()
         }
     }
@@ -110,62 +112,71 @@ classDiagram
     class ComingSoonPage{
         -dict _config
         +dict keys_callbacks
-        +navigate()
+
+        +navigate(direction)
         +display()
     }
     
     class MainMenuPage{
         -dict _config
+	+dict menu_parameters
         +dict keys_callbacks
         +dict page_callbacks
         +func action
-        +select()
-        +navigate()
+
+        +navigate(direction)
         +display()
     }
     
     class ShutdownPage{
         -dict _config
+	+dict button_pos
         +dict keys_callbacks
         +dict page_callbacks
         +func action
+
         +select()
-        +navigate()
+        +navigate(direction)
+        +display()
+    }
+    
+    class SequenceRunningPage{
+        -dict     _config
+	+dict     button_pose
+        +dict     keys_callbacks
+        +dict     page_callbacks
+        +func     action
+	+str      tmp_param_file
+	+str      tmp_locker_file
+	+FileLock lock
+
+        +navigate(direction)
+	+run_sequence()
+	+run_join()
+	+display_running()
+	-_running_screen(taken)
         +display()
     }
     
     class SequenceParameterPage{
         -dict _config
+	+dict parameters_pose
+	+dict button_pose
         +dict keys_callbacks
         +dict page_callbacks
         +func action
         +list options_list
         +dict options_callbacks
-        +int current_option
+        +int  current_option
+	+str  tmp_param_file
+
         +activate_options()
         +select()
+	+option_back()
         +option_up()
         +option_down()
-        +navigate()
-        +display()
-    }
-    
-    class BatteryPage{
-        -dict _config
-        +dict keys_callbacks
-        +dict page_callbacks
-        +func action
-        +navigate()
-        +display()
-    }
-    
-    class SettingPage{
-        -dict _config
-        +dict keys_callbacks
-        +dict page_callbacks
-        +func action
-        +select()
-        +navigate()
+	+launch_sequence()
+        +navigate(direction)
         +display()
     }
     
@@ -174,8 +185,9 @@ classDiagram
         +dict keys_callbacks
         +dict page_callbacks
         +func action
+
         +get_wifi_QRCode()
-        +navigate()
+        +navigate(direction)
         +display()
     }
     
@@ -184,9 +196,45 @@ classDiagram
         +dict keys_callbacks
         +dict page_callbacks
         +func action
+
         +get_website_QRCode()
-        +navigate()
+        +navigate(direction)
         +display()
+    }
+    
+    class SettingPage{
+        -dict _config
+	+dict menu_parameters
+        +dict keys_callbacks
+        +dict page_callbacks
+        +func action
+
+        +navigate(direction)
+        +display()
+    }
+    
+    class BatteryPage{
+        -dict     _config
+        +dict     keys_callbacks
+        +dict     page_callbacks
+        +func     action
+	+bool     MAX17043_is_active
+	+max17043 fuel_gauge
+	+bool     INA2___is_active
+	+IN12__   powermeter
+
+	+update_infos()
+        +navigate(direction)
+        +display()
+    }
+    
+    class SoCMonitor{
+        -Event _stop_event
+
+        +run()
+    }
+    
+    class Thread{
     }
     
     
@@ -200,6 +248,7 @@ classDiagram
     Menu <|-- MainMenuPage
     Button <|-- ShutdownPage
     Parameter <|-- SequenceParameterPage
+    Button <|-- SequenceRunningPage
     Button <|-- SequenceParameterPage
     Info <|-- BatteryPage
     Menu <|-- SettingPage
@@ -210,9 +259,13 @@ classDiagram
     MainMenuPage o-- PageManager
     ShutdownPage o-- PageManager
     SequenceParameterPage o-- PageManager
-    BatteryPage o-- PageManager
+    SequenceRunningPage o-- PageManager
     SettingPage o-- PageManager
     WifiPage o-- PageManager
     SmartphonePage o-- PageManager
+    BatteryPage o-- PageManager
+    SoCMonitor *-- PageManager
+
+    Thread o-- SoCMonitor
     
     PageManager *-- MainApp

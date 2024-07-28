@@ -1187,19 +1187,19 @@ class WifiPage(Picture):
                                                                   WIFI_CONFIG['ignore_broadcast_ssid']))
         return None
     
+    def navigate(self, direction:str)->None:
+        self.class_logger.info(f"execute '{self.action.__name__}'",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().navigate(direction)
+        self.action()
+        return None
+    
     def display(self)->None:
         self.class_logger.info("display WifiPage",
                                extra={'className':f"{self.__class__.__name__}:"})
         self.get_wifi_QRCode()
         super().display()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
-        return None
-    
-    def navigate(self, direction:str)->None:
-        self.class_logger.info(f"execute '{self.action.__name__}'",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        super().navigate(direction)
-        self.action()
         return None
 
 
@@ -1243,19 +1243,19 @@ class SmartphonePage(Picture):
         self._generate_QRCode(f"HTTP:{WEBSITE_CONFIG['ip']}:{WEBSITE_CONFIG['port']}")
         return None
     
+    def navigate(self, direction:str)->None:
+        self.class_logger.info(f"execute '{self.action.__name__}'",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().navigate(direction)
+        self.action()
+        return None
+    
     def display(self)->None:
         self.class_logger.info("display SmartphonePage",
                                extra={'className':f"{self.__class__.__name__}:"})
         self.get_website_QRCode()
         super().display()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
-        return None
-    
-    def navigate(self, direction:str)->None:
-        self.class_logger.info(f"execute '{self.action.__name__}'",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        super().navigate(direction)
-        self.action()
         return None
 
 
@@ -1350,22 +1350,14 @@ class BatteryPage(Info):
             self.class_logger.error(f"OSError: {e}, I2C device MAX17043 (addr {hex(self.fuel_gauge._address)}) not responding",
                                     extra={'className':f"{self.__class__.__name__}:"})
             self.MAX17043_is_active = False
-        self.INA219_is_active = True
+        self.INA2___is_active = True
         try:
             self.powermeter = INA2__(busnum=1, address=0x42, max_expected_amps=2.7, shunt_ohms=30e-3)
             self.powermeter.configure()
         except BaseException as e:
             self.class_logger.error(f"Error: {e}, I2C device INA219 (addr {hex(self.powermeter._address)}) not responding",
                                     extra={'className':f"{self.__class__.__name__}:"})
-            self.INA219_is_active = False
-        return None
-    
-    def display(self)->None:
-        self.class_logger.info("display BatteryPage",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        self.interrupt_event = threading.Event()
-        self.update_thread = threading.Thread(target=self.update_infos)
-        self.update_thread.start()
+            self.INA2___is_active = False
         return None
     
     def update_infos(self)->None:
@@ -1379,7 +1371,7 @@ class BatteryPage(Info):
         super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
         
-        if not (self.MAX17043_is_active or self.INA219_is_active):
+        if not (self.MAX17043_is_active or self.INA2___is_active):
             self.LCD.screen_img.paste(self.default_icon, (160-int(self.default_icon.width/2), 45))
             
             option_font = self.FONTS["PixelOperator_M"]
@@ -1405,7 +1397,7 @@ class BatteryPage(Info):
                 else:
                     option_text += "Cell voltage: -- V\n"
                     option_text += "State of charge: -- %\n"
-                if self.INA219_is_active:
+                if self.INA2___is_active:
                     option_text += f"RPi current: {self.powermeter.current():.1f} mA\n"
                     option_text += f"RPi power: {self.powermeter.power():.1f} mW\n"
                 else:
@@ -1431,6 +1423,14 @@ class BatteryPage(Info):
             self.update_thread.join()
         self.action()
         return None
+    
+    def display(self)->None:
+        self.class_logger.info("display BatteryPage",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        self.interrupt_event = threading.Event()
+        self.update_thread = threading.Thread(target=self.update_infos)
+        self.update_thread.start()
+        return None
 
 
 class PageManager:
@@ -1451,8 +1451,8 @@ class PageManager:
         
         # Set class correspondance dict
         self.class_dict = {
-            "MainMenuPage"          : MainMenuPage,
             "ComingSoonPage"        : ComingSoonPage,
+            "MainMenuPage"          : MainMenuPage,
             "ShutdownPage"          : ShutdownPage,
             "SequenceParameterPage" : SequenceParameterPage,
             "SequenceRunningPage"   : SequenceRunningPage,
