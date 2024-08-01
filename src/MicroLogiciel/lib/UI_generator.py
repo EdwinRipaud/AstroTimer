@@ -591,13 +591,122 @@ class Info(Page):
         self.class_logger.info(f"execute '{self.action.__name__}'",
                                extra={'className':f"{self.__class__.__name__}:"})
         super().navigate(direction)
-        # self.action()
         return None
     
     def display(self)->None:
         self.class_logger.info("add infos to the display",
                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
+        return None
+
+
+class Keyboard(Page):
+    class_logger = logging.getLogger('classLogger')
+    
+    def __init__(self, config:dict)->None:
+        self.class_logger.info("initialise Info specific options",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().__init__(config)
+        self._config = config
+        
+        # Set callbacks for navigation keys
+        try:
+            self.keys_callbacks = {
+                **self.keys_callbacks,
+                "keyboard_up": self.keyboard_up,
+                "keyboard_down": self.keyboard_down,
+                "keyboard_left": self.keyboard_left,
+                "keyboard_right": self.keyboard_right,
+                "keyboard_select": self.keyboard_select
+                }
+        except AttributeError:
+            self.class_logger.warning("keys_callbacks doesn't existe",
+                                      extra={'className':f"{self.__class__.__name__}:"})
+            self.keys_callbacks = {
+                "keyboard_up": self.keyboard_up,
+                "keyboard_down": self.keyboard_down,
+                "keyboard_left": self.keyboard_left,
+                "keyboard_right": self.keyboard_right,
+                "keyboard_select": self.keyboard_select
+                }
+        
+        self.keyboard_keys = {'lower': [["MAJ", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "ENTER", "ENTER", "ENTER"],
+                                        ["MAJ", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"],
+                                        ["MAJ", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]],
+                              'upper': [["MAJ", "&", "(", "-", "_", ")", "=", "*", "+", ".", ",", "ENTER", "ENTER", "ENTER"],
+                                        ["MAJ", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"],
+                                        ["MAJ", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]]}
+        self.case = "upper"
+        self._keyboard_size = (len(self.keyboard_keys[self.case]), max([len(l) for l in self.keyboard_keys[self.case]]))
+        self.init_pos = (30, 105)
+        self.step = (20, 24)
+        self.current_key = (0, 0)
+        return None
+    
+    def keyboard_up(self)->None:
+        self.class_logger.info("move current key selection up",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        self.current_key = (self.current_key[0], (self.current_key[1] - 1) % self._keyboard_size[0])
+        self.display()
+        return None
+    
+    def keyboard_down(self)->None:
+        self.class_logger.info("move current key selection down",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        self.current_key = (self.current_key[0], (self.current_key[1] + 1) % self._keyboard_size[0])
+        self.display()
+        return None
+    
+    def keyboard_left(self)->None:
+        self.class_logger.info("move current key selection left",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        self.current_key = ((self.current_key[0] - 1) % self._keyboard_size[1], self.current_key[1])
+        self.display()
+        return None
+    
+    def keyboard_right(self)->None:
+        self.class_logger.info("move current key selection right",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        self.current_key = ((self.current_key[0] + 1) % self._keyboard_size[1], self.current_key[1])
+        self.display()
+        return None
+    
+    def keyboard_select(self)->None:
+        self.class_logger.info("handle key selection callbacks",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        print(self.keyboard_keys[self.case][self.current_key[1]][self.current_key[0]])
+        self.display()
+        return None
+    
+    def navigate(self, direction:str)->None:
+        self.class_logger.info(f"execute '{self.action.__name__}'",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().navigate(direction)
+        return None
+    
+    def display(self)->None:
+        self.class_logger.info("add infos to the display",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().display()
+        draw = ImageDraw.Draw(self.LCD.screen_img)
+        keys = self.keyboard_keys[self.case]
+        option_font = self.FONTS["PixelOperator_M"]
+        
+        x = self.init_pos[0]+self.step[0]*(self.current_key[0]-0.5)
+        y = self.init_pos[1]+self.step[1]*(self.current_key[1]-0.5)
+        draw.rounded_rectangle((x-1, y-1, x+self.step[0]+1, y+self.step[1]+1),
+                               radius=5,
+                               fill=(0, 0, 0),
+                               outline=(255, 255, 255),
+                               width=2)
+        
+        for i in range(self._keyboard_size[0]):
+            for j in range(self._keyboard_size[1]):
+                option_pos = (self.init_pos[0]+self.step[0]*j, self.init_pos[1]+self.step[1]*i)
+                if len(keys[i][j])<2:
+                    draw.text(option_pos, keys[i][j], font=option_font, fill=(255, 255, 255), anchor='mm')
+                else:
+                    draw.text(option_pos, "\u23FA", font=option_font, fill=(255, 255, 255), anchor='mm')
         return None
 
 
@@ -1433,6 +1542,53 @@ class BatteryPage(Info):
         return None
 
 
+class WifiPasswordPage(Keyboard):
+    class_logger = logging.getLogger('classLogger')
+    
+    def __init__(self, config:dict, callbacks:dict, general_config:dict)->None:
+        self.class_logger.info("initialise MainMenuPage",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        
+        # Associate general high level attribute to 'self'
+        for key, value in general_config.items():
+            setattr(self, key, value)
+        
+        super().__init__(config)
+        self._config = config
+        
+        # Set callbacks for navigation keys
+        self.keys_callbacks = {**self.keys_callbacks,
+                               "up":self.keyboard_up,
+                               "down":self.keyboard_down,
+                               "right":self.keyboard_right,
+                               "left":self.keyboard_left,
+                               "select":self.keyboard_select,
+                                **callbacks["keys_callbacks"]}
+        
+        # Set callbacks for navigation
+        self.page_callbacks = {**self.page_callbacks,**callbacks["page_callbacks"]}
+        
+        self.action = lambda: None
+        return None
+    
+    def display(self)->None:
+        self.class_logger.info("display MainMenuPage",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().display()
+        self._draw_status_bar()
+        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+        return None
+    
+    def navigate(self, direction:str)->None:
+        self.class_logger.info("Navigate into SettingPage",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().navigate(direction)
+        self.class_logger.info(f"Execute: '{self.action.__name__}'",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        self.action()
+        return None
+
+
 class PageManager:
     class_logger = logging.getLogger('classLogger')
     
@@ -1460,6 +1616,7 @@ class PageManager:
             "WifiPage"              : WifiPage,
             "SmartphonePage"        : SmartphonePage,
             "BatteryPage"           : BatteryPage,
+            "WifiPasswordPage"      : WifiPasswordPage,
             }
         
         # Define interface level keys callback function

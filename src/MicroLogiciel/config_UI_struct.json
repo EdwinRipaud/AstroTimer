@@ -164,7 +164,7 @@
             },
             {
                 "name"  : "Wifi",
-                "action" : "coming_soon_page",
+                "action" : "wifi_password_page",
                 "icon"   : ""
             },
             {
@@ -209,6 +209,17 @@
             "down"  : "",
             "left"  : "go_back",
             "right" : ""
+        }
+    },
+    "wifi_password_page" : {
+        "title" : "Battery",
+        "class" : "WifiPasswordPage",
+        "keys" : {
+            "enter" : "select",
+            "up"    : "up",
+            "down"  : "down",
+            "left"  : "left",
+            "right" : "right"
         }
     }
 }
