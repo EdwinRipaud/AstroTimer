@@ -24,7 +24,7 @@ OPERATING_SYSTEM = os.uname()
 RUN_ON_RPi = (OPERATING_SYSTEM.sysname == 'Linux') and (OPERATING_SYSTEM.machine in ['aarch64', 'armv6l'])
 
 if RUN_ON_RPi:
-    BYPASS_BUILTIN_SCREEN = False
+    BYPASS_BUILTIN_SCREEN = True
     from smbus import SMBus
     bus = SMBus(1)
     I2C_DEVICE = []
@@ -600,6 +600,7 @@ class Info(Page):
         return None
 
 
+# TODO: Modify the class to be an object link to a text-cell
 class Keyboard(Page):
     class_logger = logging.getLogger('classLogger')
     
@@ -630,17 +631,19 @@ class Keyboard(Page):
                 "keyboard_select": self.keyboard_select
                 }
         
-        self.keyboard_keys = {'lower': [["MAJ", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "ENTER", "ENTER", "ENTER"],
+        self.keyboard_keys = {'lower': [["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "DEL", "DEL", "OK", "OK"],
                                         ["MAJ", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"],
                                         ["MAJ", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]],
-                              'upper': [["MAJ", "&", "(", "-", "_", ")", "=", "*", "+", ".", ",", "ENTER", "ENTER", "ENTER"],
+                              'upper': [["&", "(", "-", "_", ")", "=", "*", "+", ".", ",", "DEL", "DEL", "OK", "OK"],
                                         ["MAJ", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"],
                                         ["MAJ", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]]}
-        self.case = "upper"
-        self._keyboard_size = (len(self.keyboard_keys[self.case]), max([len(l) for l in self.keyboard_keys[self.case]]))
+        self.case = {True:'lower', False:'upper'}
+        self._case = True
+        self._keyboard_size = (len(self.keyboard_keys[self.case[self._case]]),
+                               max([len(l) for l in self.keyboard_keys[self.case[self._case]]]))
         self.init_pos = (30, 105)
         self.step = (20, 24)
-        self.current_key = (0, 0)
+        self.current_key = (1, 1)
         return None
     
     def keyboard_up(self)->None:
@@ -674,7 +677,11 @@ class Keyboard(Page):
     def keyboard_select(self)->None:
         self.class_logger.info("handle key selection callbacks",
                                extra={'className':f"{self.__class__.__name__}:"})
-        print(self.keyboard_keys[self.case][self.current_key[1]][self.current_key[0]])
+        key_val = self.keyboard_keys[self.case[self._case]][self.current_key[1]][self.current_key[0]]
+        if len(key_val)<2:
+            print(key_val)
+        elif key_val == "MAJ":
+            self._case = not self._case
         self.display()
         return None
     
@@ -684,29 +691,36 @@ class Keyboard(Page):
         super().navigate(direction)
         return None
     
+    def _display_keys(self, draw:ImageDraw.ImageDraw, keys:list)->None:
+        option_font = self.FONTS["PixelOperator_M"]
+        for i in range(self._keyboard_size[0]):
+            for j in range(self._keyboard_size[1]):
+                if len(keys[i][j])<2:
+                    option_pos = (self.init_pos[0]+self.step[0]*j, self.init_pos[1]+self.step[1]*i)
+                    draw.text(option_pos, keys[i][j], font=option_font, fill=(255, 255, 255), anchor='mm')
+        return None
+    
     def display(self)->None:
         self.class_logger.info("add infos to the display",
                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
-        keys = self.keyboard_keys[self.case]
-        option_font = self.FONTS["PixelOperator_M"]
+        keys = self.keyboard_keys[self.case[self._case]]
         
-        x = self.init_pos[0]+self.step[0]*(self.current_key[0]-0.5)
-        y = self.init_pos[1]+self.step[1]*(self.current_key[1]-0.5)
-        draw.rounded_rectangle((x-1, y-1, x+self.step[0]+1, y+self.step[1]+1),
-                               radius=5,
-                               fill=(0, 0, 0),
-                               outline=(255, 255, 255),
-                               width=2)
+        if len(keys[self.current_key[1]][self.current_key[0]])<2:
+            x = self.init_pos[0]+self.step[0]*(self.current_key[0]-0.5)
+            y = self.init_pos[1]+self.step[1]*(self.current_key[1]-0.5)
+            draw.rounded_rectangle((x-1, y-1, x+self.step[0]+1, y+self.step[1]+1),
+                                   radius=5,
+                                   fill=(0, 0, 0),
+                                   outline=(255, 255, 255),
+                                   width=2)
+            # Add image of MAJ, DEL and OK
+        else:
+            pass
+            # Add image of MAJ, DEL and OK with highlight
         
-        for i in range(self._keyboard_size[0]):
-            for j in range(self._keyboard_size[1]):
-                option_pos = (self.init_pos[0]+self.step[0]*j, self.init_pos[1]+self.step[1]*i)
-                if len(keys[i][j])<2:
-                    draw.text(option_pos, keys[i][j], font=option_font, fill=(255, 255, 255), anchor='mm')
-                else:
-                    draw.text(option_pos, "\u23FA", font=option_font, fill=(255, 255, 255), anchor='mm')
+        self._display_keys(draw, keys)
         return None
 
 
