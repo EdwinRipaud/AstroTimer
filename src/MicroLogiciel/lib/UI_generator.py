@@ -80,7 +80,7 @@ class Page:
         auth_level = np.array(list(self.BATTERY_DICT.keys()))
         auth_level[::-1].sort()
         
-        if BATTERY_SOC>auth_level[-1]:
+        if BATTERY_SOC>auth_level[-2]:
             arg = np.argmax(auth_level<BATTERY_SOC)
         else:
             arg = -1
@@ -469,12 +469,11 @@ class Parameter(Page):
                                            fill=(64, 64, 64),
                                            outline=(255, 255, 255),
                                            width=2)
-                    # TODO: replace this text by a top-bottom chevron custom icon
-                    draw.text((self.parameters_pose['right']+2*self.parameters_pose['offset'], self.parameters_pose['top'] + i * self.parameters_pose['step']),
-                              "<>",
-                              font=self.FONTS["PixelOperatorBold_M"],
-                              fill=(255, 255, 255),
-                              anchor='lm')
+                    asset_rafter = Image.open(self.PATH_ASSETS+'Up_down_rafter.png')
+                    self.LCD.screen_img.paste(asset_rafter,
+                                              (self.parameters_pose['right']+2*self.parameters_pose['offset'],
+                                               self.parameters_pose['top'] + i * self.parameters_pose['step']-int(asset_rafter.size[1]/2)),
+                                              asset_rafter.convert("RGBA"))
                 else:
                     draw.rounded_rectangle(box_pose,
                                            radius=self.parameters_pose['radius'],

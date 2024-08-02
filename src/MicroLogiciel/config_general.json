@@ -31,7 +31,8 @@
         "Icon_battery_35.png" : 35,
         "Icon_battery_25.png" : 25,
         "Icon_battery_15.png" : 15,
-        "Icon_battery_7.5.png": 7.5
+        "Icon_battery_7.5.png": 7.5,
+        "Icon_battery_none.png": 2.5
     },
     "fonts": {
         "PixelOperator_S"        : {"path": "pixel_operator/PixelOperator.ttf",          "size":16},
