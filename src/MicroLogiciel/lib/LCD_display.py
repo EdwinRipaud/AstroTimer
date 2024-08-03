@@ -335,7 +335,7 @@ class LCD_1inch47():
         if show:
                 image.transpose(ROTATE_90).show()
         
-        if RUN_ON_RPi:
+        elif RUN_ON_RPi:
             img = np.asarray(image)
             pix = np.zeros((self.height,self.width,2), dtype = np.uint8)
             
