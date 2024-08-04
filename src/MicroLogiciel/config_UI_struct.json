@@ -64,20 +64,18 @@
             "left"  : "button_up",
             "right" : "button_down"
         },
-        "buttons": {
-            "options" : [
-                {
-                    "name"     : "No",
-                    "action"   : "main_menu_page",
-                    "position" : [256, 145]
-                },
-                {
-                    "name"     : "Yes",
-                    "action"   : "shutdown",
-                    "position" : [64, 145]
-                }
-            ]
-        }
+        "buttons": [
+            {
+                "name"     : "No",
+                "action"   : "main_menu_page",
+                "position" : [256, 145]
+            },
+            {
+                "name"     : "Yes",
+                "action"   : "shutdown",
+                "position" : [64, 145]
+            }
+        ]
     },
     "sequence_parameter_page" : {
         "title" : "Sequence parameter",
@@ -89,37 +87,39 @@
             "left"  : "back",
             "right" : "select"
         },
-        "buttons" : {
-            "options" : [
-                {
-                    "name"     : "Run",
-                    "action"   : "sequence_running_page",
-                    "position" : [280, 145]
-                }
-            ]
-        },
-        "parameters" : {
-            "options" : [
-                {
-                    "name"  : "Shots",
-                    "unit"  : "",
-                    "value" : 3,
-                    "step"  : 1
-                },
-                {
-                    "name"  : "Exposure",
-                    "unit"  : "s",
-                    "value" : 2,
-                    "step"  : 1
-                },
-                {
-                    "name"  : "Interval",
-                    "unit"  : "s",
-                    "value" : 0.5,
-                    "step"  : 0.5
-                }
-            ]
-        }
+        "buttons" : [
+            {
+                "name"     : "Run",
+                "action"   : "sequence_running_page",
+                "position" : [280, 145]
+            }
+        ],
+        "parameters" : [
+            {
+                "name"  : "Shots",
+                "type"  : "number",
+                "unit"  : "",
+                "value" : 3,
+                "step"  : 1,
+                "position": [12, 52]
+            },
+            {
+                "name"  : "Exposure",
+                "type"  : "number",
+                "unit"  : "s",
+                "value" : 2,
+                "step"  : 1,
+                "position": [12, 84]
+            },
+            {
+                "name"  : "Interval",
+                "type"  : "number",
+                "unit"  : "s",
+                "value" : 0.5,
+                "step"  : 0.5,
+                "position": [12, 106]
+            }
+        ]
     },
     "sequence_running_page" : {
         "title" : "Running sequence",
@@ -131,15 +131,13 @@
             "left"  : "go_back",
             "right" : "go_back"
         },
-        "buttons" : {
-            "options" : [
-                {
-                    "name"     : "||",
-                    "action"   : "sequence_parameter_page",
-                    "position" : [275, 80]
-                }
-            ]
-        }
+        "buttons" : [
+            {
+                "name"     : "||",
+                "action"   : "sequence_parameter_page",
+                "position" : [275, 80]
+            }
+        ]
     },
     "setting_page" : {
         "title" : "Setting",
@@ -220,6 +218,21 @@
             "down"  : "down",
             "left"  : "left",
             "right" : "right"
-        }
+        },
+        "parameters" : [
+            {
+                "name"  : "SSID",
+                "type"  : "text",
+                "keep"  : 1,
+                "value" : "default_SSID"
+            },
+            {
+                "name"  : "Interval",
+                "type"  : "number",
+                "unit"  : "s",
+                "value" : 0.5,
+                "step"  : 0.5
+            }
+        ]
     }
 }

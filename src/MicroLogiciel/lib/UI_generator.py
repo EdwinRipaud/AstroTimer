@@ -24,7 +24,7 @@ OPERATING_SYSTEM = os.uname()
 RUN_ON_RPi = (OPERATING_SYSTEM.sysname == 'Linux') and (OPERATING_SYSTEM.machine in ['aarch64', 'armv6l'])
 
 if RUN_ON_RPi:
-    BYPASS_BUILTIN_SCREEN = True
+    BYPASS_BUILTIN_SCREEN = False
     from smbus import SMBus
     bus = SMBus(1)
     I2C_DEVICE = []
@@ -244,8 +244,7 @@ class Button(Page):
         super().__init__(config)
         self._config = config
         
-        self.button_config = self._config["buttons"]
-        self.button_options = self.button_config["options"]
+        self.button_options = self._config["buttons"]
         
         self.current_button = 0
         self.button_active = True
@@ -346,61 +345,201 @@ class Button(Page):
         return None
 
 
-class Parameter(Page):
+class Parameter():
     class_logger = logging.getLogger('classLogger')
     
     def __init__(self, config:dict)->None:
         self.class_logger.info("initialise parameter specific options",
                                extra={'className':f"{self.__class__.__name__}:"})
-        super().__init__(config)
+        # super().__init__(config)
         self._config = config
         
-        self.parameter_config = self._config["parameters"]
-        self.parameter_options = self.parameter_config["options"]
-        
-        self.current_parameter = 0
         self.parameter_seleceted = 0
         self.parameter_active = True
         
-        self.parameters_pose = {}
+        # self.parameters_pose = config['pose']
         
         # Set callbacks for navigation keys
         try:
             self.keys_callbacks = {
                 **self.keys_callbacks,
-                'parameter_up'   : [self.parameter_up, self.parameter_increment],
-                'parameter_down' : [self.parameter_down, self.parameter_decrement],
+                }
+        except AttributeError:
+            self.class_logger.warning("keys_callbacks doesn't existe",
+                                      extra={'className':f"{self.__class__.__name__}:"})
+            self.keys_callbacks = {}
+        return None
+    
+    def display(self)->None:
+        self.class_logger.info("add parameter elements to the display",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().display()
+        return None
+
+
+class Keyboard(Parameter):
+    class_logger = logging.getLogger('classLogger')
+    
+    def __init__(self, config:dict)->None:
+        self.class_logger.info("initialise Info specific options",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().__init__(config)
+        self._config = config
+        
+        # Set callbacks for navigation keys
+        try:
+            self.keys_callbacks = {
+                **self.keys_callbacks,
+                "keyboard_up": self.keyboard_up,
+                "keyboard_down": self.keyboard_down,
+                "keyboard_left": self.keyboard_left,
+                "keyboard_right": self.keyboard_right,
+                "keyboard_select": self.keyboard_select
                 }
         except AttributeError:
             self.class_logger.warning("keys_callbacks doesn't existe",
                                       extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks = {
-                'parameter_up'   : [self.parameter_up, self.parameter_increment],
-                'parameter_down' : [self.parameter_down, self.parameter_decrement],
+                "keyboard_up": self.keyboard_up,
+                "keyboard_down": self.keyboard_down,
+                "keyboard_left": self.keyboard_left,
+                "keyboard_right": self.keyboard_right,
+                "keyboard_select": self.keyboard_select
                 }
+        
+        self.keyboard_keys = {'lower': [["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "DEL", "DEL", "OK", "OK"],
+                                        ["MAJ", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"],
+                                        ["MAJ", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]],
+                              'upper': [["&", "(", "-", "_", ")", "=", "*", "+", ".", ",", "DEL", "DEL", "OK", "OK"],
+                                        ["MAJ", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"],
+                                        ["MAJ", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]]}
+        self.case = {True:'lower', False:'upper'}
+        self._case = True
+        self._keyboard_size = (len(self.keyboard_keys[self.case[self._case]]),
+                               max([len(l) for l in self.keyboard_keys[self.case[self._case]]]))
+        self._key_spe = {'MAJ': {'pos': (17, 116),
+                                 'path': {False:f"{self.PATH_ASSETS}Key_MAJ.png",
+                                          True:f"{self.PATH_ASSETS}Key_MAJ_selected.png"}},
+                         'DEL': {'pos': (220, 92),
+                                 'path': {False:f"{self.PATH_ASSETS}Key_DEL.png",
+                                          True:f"{self.PATH_ASSETS}Key_DEL_selected.png"}},
+                         'OK': {'pos': (262, 92),
+                                'path': {False:f"{self.PATH_ASSETS}Key_OK.png",
+                                         True:f"{self.PATH_ASSETS}Key_OK_selected.png"}}}
+        self.init_pos = (30, 105)
+        self.step = (20, 24)
+        self.current_key = (1, 1)
         return None
     
-    def parameter_up(self)->None:
-        self.class_logger.info("move current parameter up",
+    def keyboard_up(self)->None:
+        self.class_logger.info("move current key selection up",
                                extra={'className':f"{self.__class__.__name__}:"})
-        self.current_parameter = (self.current_parameter - 1) % len(self.parameter_options)
+        self.current_key = (self.current_key[0], (self.current_key[1] - 1) % self._keyboard_size[0])
         self.display()
         return None
     
-    def parameter_down(self)->None:
-        self.class_logger.info("move current parameter down",
+    def keyboard_down(self)->None:
+        self.class_logger.info("move current key selection down",
                                extra={'className':f"{self.__class__.__name__}:"})
-        self.current_parameter = (self.current_parameter + 1) % len(self.parameter_options)
+        self.current_key = (self.current_key[0], (self.current_key[1] + 1) % self._keyboard_size[0])
         self.display()
         return None
     
-    def parameter_select(self)->None:
-        self.class_logger.info("handle parameter selection callbacks",
+    def keyboard_left(self)->None:
+        self.class_logger.info("move current key selection left",
                                extra={'className':f"{self.__class__.__name__}:"})
-        self.parameter_seleceted = (self.parameter_seleceted+1)%2
-        self.class_logger.debug("Selected {bool(self.parameter_seleceted)}",
-                                extra={'className':f"{self.__class__.__name__}:"})
+        self.current_key = ((self.current_key[0] - 1) % self._keyboard_size[1], self.current_key[1])
         self.display()
+        return None
+    
+    def keyboard_right(self)->None:
+        self.class_logger.info("move current key selection right",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        self.current_key = ((self.current_key[0] + 1) % self._keyboard_size[1], self.current_key[1])
+        self.display()
+        return None
+    
+    def keyboard_select(self)->None:
+        self.class_logger.info("handle key selection callbacks",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        key_val = self.keyboard_keys[self.case[self._case]][self.current_key[1]][self.current_key[0]]
+        if len(key_val)<2:
+            print(key_val)
+        elif key_val == "MAJ":
+            self._case = not self._case
+        self.display()
+        return None
+    
+    def navigate(self, direction:str)->None:
+        self.class_logger.info(f"execute '{self.action.__name__}'",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().navigate(direction)
+        return None
+    
+    def _display_keys(self, draw:ImageDraw.ImageDraw, keys:list)->None:
+        # Display special keys
+        for k in self._key_spe.keys():
+            icon = Image.open(self._key_spe[k]['path'][k==keys[self.current_key[1]][self.current_key[0]]])
+            self.LCD.screen_img.paste(icon, self._key_spe[k]['pos'])
+            
+        # Display alphabetic keys
+        if len(keys[self.current_key[1]][self.current_key[0]])<2:
+            x = self.init_pos[0]+self.step[0]*(self.current_key[0]-0.5)
+            y = self.init_pos[1]+self.step[1]*(self.current_key[1]-0.5)
+            draw.rounded_rectangle((x-1, y-1, x+self.step[0]+1, y+self.step[1]+1),
+                                   radius=5,
+                                   fill=(0, 0, 0),
+                                   outline=(255, 255, 255),
+                                   width=2)
+        option_font = self.FONTS["PixelOperator_M"]
+        for i in range(self._keyboard_size[0]):
+            for j in range(self._keyboard_size[1]):
+                if len(keys[i][j])<2:
+                    option_pos = (self.init_pos[0]+self.step[0]*j, self.init_pos[1]+self.step[1]*i)
+                    draw.text(option_pos, keys[i][j], font=option_font, fill=(255, 255, 255), anchor='mm')
+        return None
+    
+    def display(self)->None:
+        self.class_logger.info("add infos to the display",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().display()
+        draw = ImageDraw.Draw(self.LCD.screen_img)
+        keys = self.keyboard_keys[self.case[self._case]]
+        
+        self._display_keys(draw, keys)
+        return None
+
+
+class Numpad(Parameter):
+    class_logger = logging.getLogger('classLogger')
+    
+    def __init__(self, config:dict)->None:
+        self.class_logger.info("initialise Info specific options",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().__init__(config)
+        self._config = config
+        
+        self.name = self._config['name']
+        self.unit = self._config['unit']
+        self.value = self._config['value']
+        self.step = self._config['step']
+        
+        self._pose = self._config['position']
+        
+        # Set callbacks for navigation keys
+        try:
+            self.keys_callbacks = {
+                **self.keys_callbacks,
+                'parameter_up'   : self.parameter_increment,
+                'parameter_down' : self.parameter_decrement,
+                }
+        except AttributeError:
+            self.class_logger.warning("keys_callbacks doesn't existe",
+                                      extra={'className':f"{self.__class__.__name__}:"})
+            self.keys_callbacks = {
+                'parameter_up'   : self.parameter_increment,
+                'parameter_down' : self.parameter_decrement,
+                }
         return None
     
     def parameter_increment(self)->None:
@@ -428,10 +567,7 @@ class Parameter(Page):
                                extra={'className':f"{self.__class__.__name__}:"})
         try:
             if self.keys[direction] not in ['', 'none']:
-                if type(self.keys_callbacks[self.keys[direction]]) is list:
-                    self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
-                else:
-                    self.action = self.keys_callbacks[self.keys[direction]]
+                self.action = self.keys_callbacks[self.keys[direction]]
         except KeyError as e:
             self.class_logger.error(f"KeyError: {e}")
         return None
@@ -441,68 +577,43 @@ class Parameter(Page):
                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
-        # Add parameters with values
-        for i in range(len(self.parameter_options)):
-            parameter = self.parameter_options[i]
-            
-            if i == self.current_parameter:
-                font = self.FONTS["PixelOperatorBold_M"]
-            else:
-                font = self.FONTS["PixelOperator_M"]
-            
-            name_pos = (self.parameters_pose['left'], self.parameters_pose['top'] + i * self.parameters_pose['step'])
-            name_text = parameter["name"] if parameter["name"] != "" else "[empty name]"
-            draw.text(name_pos,
-                      name_text,
+        # Display parameter with values
+        
+        font = self.FONTS["PixelOperatorBold_M" if self.parameter_seleceted else "PixelOperator_M"]
+        draw.text((self._pose['left'], self._pose['top']),
+                  self.name,
+                  font=font,
+                  fill=(255, 255, 255),
+                  anchor='lm')
+        
+        box_pose = (self._pose['right']+self._pose['pad'],
+                    self._pose['top']-self._pose['pad'],
+                    self._pose['right']+self._pose['pad']+self._pose['width'],
+                    self._pose['top']+self._pose['pad']+self._pose['hight'])
+        if self.parameter_seleceted:
+            draw.rounded_rectangle(box_pose,
+                                   radius=self._pose['radius'],
+                                   fill=(64, 64, 64),
+                                   outline=(255, 255, 255),
+                                   width=2)
+            # TODO: replace this text by a top-bottom chevron custom icon
+            draw.text((self._pose['right']+2*self._pose['offset'], self._pose['top']),
+                      "<>",
                       font=font,
                       fill=(255, 255, 255),
                       anchor='lm')
-            
-            box_pose = (self.parameters_pose['right']+self.parameters_pose['offset'],
-                        self.parameters_pose['top']-self.parameters_pose['pad_y'] + i * self.parameters_pose['step'],
-                        self.parameters_pose['right']+self.parameters_pose['offset']+self.parameters_pose['box_length'],
-                        self.parameters_pose['top']+self.parameters_pose['pad_y'] + i * self.parameters_pose['step'])
-            if (i == self.current_parameter) and self.parameter_active:
-                if self.parameter_seleceted:
-                    draw.rounded_rectangle(box_pose,
-                                           radius=self.parameters_pose['radius'],
-                                           fill=(64, 64, 64),
-                                           outline=(255, 255, 255),
-                                           width=2)
-                    # TODO: replace this text by a top-bottom chevron custom icon
-                    draw.text((self.parameters_pose['right']+2*self.parameters_pose['offset'], self.parameters_pose['top'] + i * self.parameters_pose['step']),
-                              "<>",
-                              font=self.FONTS["PixelOperatorBold_M"],
-                              fill=(255, 255, 255),
-                              anchor='lm')
-                else:
-                    draw.rounded_rectangle(box_pose,
-                                           radius=self.parameters_pose['radius'],
-                                           fill=(0, 0, 0),
-                                           outline=(255, 255, 255),
-                                           width=2)
-            else:
-                draw.rounded_rectangle(box_pose,
-                                       radius=self.parameters_pose['radius'],
-                                       fill=(0, 0, 0),
-                                       outline=(64, 64, 64),
-                                       width=1)
-            
-            param_pos = (box_pose[2]-self.parameters_pose['offset'], self.parameters_pose['top'] + i * self.parameters_pose['step'])
-            param_text = str(parameter["value"])
-            draw.text(param_pos,
-                      param_text,
-                      font=font,
-                      fill=(255, 255, 255),
-                      anchor='rm')
-            
-            unit_pos = (box_pose[2]+self.parameters_pose['offset'], self.parameters_pose['top'] + i * self.parameters_pose['step'])
-            unit_text = parameter["unit"]
-            draw.text(unit_pos,
-                      unit_text,
-                      font=font,
-                      fill=(255, 255, 255),
-                      anchor='lm')
+        else:
+            draw.rounded_rectangle(box_pose,
+                                   radius=self._pose['radius'],
+                                   fill=(0, 0, 0),
+                                   outline=(255, 255, 255),
+                                   width=2)
+        
+        draw.text((box_pose[2]-self._pose['offset'], self._pose['top']),
+                  str(self.value),
+                  font=font,
+                  fill=(255, 255, 255),
+                  anchor='rm')
         return None
 
 
@@ -597,130 +708,6 @@ class Info(Page):
         self.class_logger.info("add infos to the display",
                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
-        return None
-
-
-# TODO: Modify the class to be an object link to a text-cell
-class Keyboard(Page):
-    class_logger = logging.getLogger('classLogger')
-    
-    def __init__(self, config:dict)->None:
-        self.class_logger.info("initialise Info specific options",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        super().__init__(config)
-        self._config = config
-        
-        # Set callbacks for navigation keys
-        try:
-            self.keys_callbacks = {
-                **self.keys_callbacks,
-                "keyboard_up": self.keyboard_up,
-                "keyboard_down": self.keyboard_down,
-                "keyboard_left": self.keyboard_left,
-                "keyboard_right": self.keyboard_right,
-                "keyboard_select": self.keyboard_select
-                }
-        except AttributeError:
-            self.class_logger.warning("keys_callbacks doesn't existe",
-                                      extra={'className':f"{self.__class__.__name__}:"})
-            self.keys_callbacks = {
-                "keyboard_up": self.keyboard_up,
-                "keyboard_down": self.keyboard_down,
-                "keyboard_left": self.keyboard_left,
-                "keyboard_right": self.keyboard_right,
-                "keyboard_select": self.keyboard_select
-                }
-        
-        self.keyboard_keys = {'lower': [["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "DEL", "DEL", "OK", "OK"],
-                                        ["MAJ", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"],
-                                        ["MAJ", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]],
-                              'upper': [["&", "(", "-", "_", ")", "=", "*", "+", ".", ",", "DEL", "DEL", "OK", "OK"],
-                                        ["MAJ", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"],
-                                        ["MAJ", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]]}
-        self.case = {True:'lower', False:'upper'}
-        self._case = True
-        self._keyboard_size = (len(self.keyboard_keys[self.case[self._case]]),
-                               max([len(l) for l in self.keyboard_keys[self.case[self._case]]]))
-        self.init_pos = (30, 105)
-        self.step = (20, 24)
-        self.current_key = (1, 1)
-        return None
-    
-    def keyboard_up(self)->None:
-        self.class_logger.info("move current key selection up",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        self.current_key = (self.current_key[0], (self.current_key[1] - 1) % self._keyboard_size[0])
-        self.display()
-        return None
-    
-    def keyboard_down(self)->None:
-        self.class_logger.info("move current key selection down",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        self.current_key = (self.current_key[0], (self.current_key[1] + 1) % self._keyboard_size[0])
-        self.display()
-        return None
-    
-    def keyboard_left(self)->None:
-        self.class_logger.info("move current key selection left",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        self.current_key = ((self.current_key[0] - 1) % self._keyboard_size[1], self.current_key[1])
-        self.display()
-        return None
-    
-    def keyboard_right(self)->None:
-        self.class_logger.info("move current key selection right",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        self.current_key = ((self.current_key[0] + 1) % self._keyboard_size[1], self.current_key[1])
-        self.display()
-        return None
-    
-    def keyboard_select(self)->None:
-        self.class_logger.info("handle key selection callbacks",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        key_val = self.keyboard_keys[self.case[self._case]][self.current_key[1]][self.current_key[0]]
-        if len(key_val)<2:
-            print(key_val)
-        elif key_val == "MAJ":
-            self._case = not self._case
-        self.display()
-        return None
-    
-    def navigate(self, direction:str)->None:
-        self.class_logger.info(f"execute '{self.action.__name__}'",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        super().navigate(direction)
-        return None
-    
-    def _display_keys(self, draw:ImageDraw.ImageDraw, keys:list)->None:
-        option_font = self.FONTS["PixelOperator_M"]
-        for i in range(self._keyboard_size[0]):
-            for j in range(self._keyboard_size[1]):
-                if len(keys[i][j])<2:
-                    option_pos = (self.init_pos[0]+self.step[0]*j, self.init_pos[1]+self.step[1]*i)
-                    draw.text(option_pos, keys[i][j], font=option_font, fill=(255, 255, 255), anchor='mm')
-        return None
-    
-    def display(self)->None:
-        self.class_logger.info("add infos to the display",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        super().display()
-        draw = ImageDraw.Draw(self.LCD.screen_img)
-        keys = self.keyboard_keys[self.case[self._case]]
-        
-        if len(keys[self.current_key[1]][self.current_key[0]])<2:
-            x = self.init_pos[0]+self.step[0]*(self.current_key[0]-0.5)
-            y = self.init_pos[1]+self.step[1]*(self.current_key[1]-0.5)
-            draw.rounded_rectangle((x-1, y-1, x+self.step[0]+1, y+self.step[1]+1),
-                                   radius=5,
-                                   fill=(0, 0, 0),
-                                   outline=(255, 255, 255),
-                                   width=2)
-            # Add image of MAJ, DEL and OK
-        else:
-            pass
-            # Add image of MAJ, DEL and OK with highlight
-        
-        self._display_keys(draw, keys)
         return None
 
 
@@ -904,7 +891,7 @@ class ShutdownPage(Button):
         return None
 
 
-class SequenceParameterPage(Parameter, Button):
+class SequenceParameterPage(Page):
     class_logger = logging.getLogger('classLogger')
     
     def __init__(self, config:dict, callbacks:dict, general_config:dict)->None:
@@ -918,59 +905,58 @@ class SequenceParameterPage(Parameter, Button):
         super().__init__(config)
         self._config = config
         
-        self.parameters_pose = {
-            "left"       : 12,
-            "top"        : 52,
-            "font_size"  : "M",
-            "step"       : 32,
-            "pad_x"      : 14,
-            "pad_y"      : 14,
-            "offset"     : 8,
-            "radius"     : 12,
-            "box_length" : 100,
-            'right'  : max([
-                ImageDraw.Draw(self.LCD.screen_img).textbbox((12, 0), param['name'],
-                               font=self.FONTS["PixelOperatorBold_M"], anchor='lm')[2]
-                for param in self.parameter_options]),
-            }
-            
-        self.button_pose = {**self.button_pose,
-            "pad_x"  : 10,
-            "pad_y"  : 10,
-            "radius" : 6
-            }
+        # self.parameters_pose = {
+        #     "left"       : 12,
+        #     "top"        : 52,
+        #     "font_size"  : "M",
+        #     "step"       : 32,
+        #     "pad_x"      : 14,
+        #     "pad_y"      : 14,
+        #     "offset"     : 8,
+        #     "radius"     : 12,
+        #     "box_length" : 100,
+        #     'right'  : max([
+        #         ImageDraw.Draw(self.LCD.screen_img).textbbox((12, 0), param['name'],
+        #                        font=self.FONTS["PixelOperatorBold_M"], anchor='lm')[2]
+        #         for param in self.parameter_options]),
+        #     }
         
         # Set callbacks for navigation keys
-        self.keys_callbacks = {
-            **self.keys_callbacks,
-            'select' : {'button':self.launch_sequence,
-                        'parameter':self.parameter_select},
-            'back' : self.option_back, #{'button':callbacks["keys_callbacks"]['go_back'], 'parameter':self.parameter_select},
-            'up' : self.option_up,
-            'down' : self.option_down,
-            **callbacks["keys_callbacks"],
-            }
+        try:
+            self.keys_callbacks = {
+                **self.keys_callbacks,
+                'select' : {'button':self.launch_sequence},
+                'back' : self.option_back,
+                'up' : self.option_up,
+                'down' : self.option_down,
+                **callbacks["keys_callbacks"],
+                }
+        except AttributeError:
+            self.class_logger.warning("keys_callbacks doesn't existe",
+                                      extra={'className':f"{self.__class__.__name__}:"})
+            self.keys_callbacks = {
+                'select' : {'button':self.launch_sequence},
+                'back' : self.option_back,
+                'up' : self.option_up,
+                'down' : self.option_down,
+                **callbacks["keys_callbacks"],
+                }
         
         # Set callbacks for navigation
         self.page_callbacks = {**callbacks["page_callbacks"]}
         
         self.action = lambda: None
         
-        self.options_list = [
-            *['parameter']*len(self.parameter_options),
-            *['button']*len(self.button_options)
-            ]
-        self.options_callbacks = {
-            'parameter' : {'up': self.keys_callbacks['parameter_up'],
-                           'down': self.keys_callbacks['parameter_down']},
-            'button' : {'up': self.keys_callbacks['button_up'],
-                        'down': self.keys_callbacks['button_down']}
-            }
-        self.current_option = -1
-        self.activate_options()
+        self._input_type = {'number': Numpad, 'text': Keyboard}
+        self.options = [self._input_type[parameter['type']](parameter) for parameter in self._config['parameters']]
+        self.options = sorted(self.options, key=self._sorted_option)
+        self.current_option = 0
         
         self.tmp_param_file = "../tmp/sequence_parameters.tmp"
         return None
+    
+    def _sorted_option(self, _in:dict)->int:
+        return _in._pose
     
     def activate_options(self)->None:
         self.class_logger.info("activate usefull options",
@@ -1556,7 +1542,7 @@ class BatteryPage(Info):
         return None
 
 
-class WifiPasswordPage(Keyboard):
+class WifiPasswordPage(Parameter):
     class_logger = logging.getLogger('classLogger')
     
     def __init__(self, config:dict, callbacks:dict, general_config:dict)->None:
@@ -1570,13 +1556,29 @@ class WifiPasswordPage(Keyboard):
         super().__init__(config)
         self._config = config
         
+        # self.parameters_pose = {
+        #     "left"       : 12,
+        #     "top"        : 52,
+        #     "font_size"  : "M",
+        #     "step"       : 32,
+        #     "pad_x"      : 14,
+        #     "pad_y"      : 14,
+        #     "offset"     : 8,
+        #     "radius"     : 12,
+        #     "box_length" : 100,
+        #     'right'  : max([
+        #         ImageDraw.Draw(self.LCD.screen_img).textbbox((12, 0), param['name'],
+        #                        font=self.FONTS["PixelOperatorBold_M"], anchor='lm')[2]
+        #         for param in self.parameter_options]),
+        #     }
+        
         # Set callbacks for navigation keys
-        self.keys_callbacks = {**self.keys_callbacks,
-                               "up":self.keyboard_up,
-                               "down":self.keyboard_down,
-                               "right":self.keyboard_right,
-                               "left":self.keyboard_left,
-                               "select":self.keyboard_select,
+        self.keys_callbacks = {#**self.keys_callbacks,
+                               # "up":self.keyboard_up,
+                               # "down":self.keyboard_down,
+                               # "right":self.keyboard_right,
+                               # "left":self.keyboard_left,
+                               # "select":self.keyboard_select,
                                 **callbacks["keys_callbacks"]}
         
         # Set callbacks for navigation
