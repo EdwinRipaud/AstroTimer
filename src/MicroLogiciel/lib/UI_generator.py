@@ -348,16 +348,16 @@ class Button(Page):
 class Parameter():
     class_logger = logging.getLogger('classLogger')
     
-    def __init__(self, config:dict)->None:
+    def __init__(self, general_config:dict)->None:
         self.class_logger.info("initialise parameter specific options",
                                extra={'className':f"{self.__class__.__name__}:"})
-        # super().__init__(config)
-        self._config = config
+        
+        # Associate general high level attribute to 'self'
+        for key, value in general_config.items():
+            setattr(self, key, value)
         
         self.parameter_seleceted = 0
         self.parameter_active = True
-        
-        # self.parameters_pose = config['pose']
         
         # Set callbacks for navigation keys
         try:
@@ -371,9 +371,10 @@ class Parameter():
         return None
     
     def display(self)->None:
-        self.class_logger.info("add parameter elements to the display",
+        self.class_logger.info("initialise new LCD image",
                                extra={'className':f"{self.__class__.__name__}:"})
-        super().display()
+        # Generate an image representing the page
+        self.LCD.screen_img = Image.new(mode="RGBA", size=self.LCD.size[::-1], color=(0, 0, 0, 255))
         return None
 
 
@@ -513,10 +514,10 @@ class Keyboard(Parameter):
 class Numpad(Parameter):
     class_logger = logging.getLogger('classLogger')
     
-    def __init__(self, config:dict)->None:
+    def __init__(self, config:dict, general_config:dict)->None:
         self.class_logger.info("initialise Info specific options",
                                extra={'className':f"{self.__class__.__name__}:"})
-        super().__init__(config)
+        super().__init__(general_config)
         self._config = config
         
         self.name = self._config['name']
@@ -525,49 +526,52 @@ class Numpad(Parameter):
         self.step = self._config['step']
         
         self._pose = self._config['position']
+        self._pose = {**self._pose,
+                      "offset": 8,
+                      "right": self._set_right(self.name)}
         
         # Set callbacks for navigation keys
         try:
             self.keys_callbacks = {
                 **self.keys_callbacks,
-                'parameter_up'   : self.parameter_increment,
-                'parameter_down' : self.parameter_decrement,
+                'up'   : self.parameter_increment,
+                'down' : self.parameter_decrement,
                 }
         except AttributeError:
             self.class_logger.warning("keys_callbacks doesn't existe",
                                       extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks = {
-                'parameter_up'   : self.parameter_increment,
-                'parameter_down' : self.parameter_decrement,
+                'up'   : self.parameter_increment,
+                'down' : self.parameter_decrement,
                 }
         return None
+    
+    def _set_right(self, txt:str)->int:
+        img = ImageDraw.Draw(self.LCD.screen_img)
+        right = img.textbbox((self._pose['left'], 0),
+                              txt,
+                              font=self.FONTS["PixelOperatorBold_M"],
+                              anchor='lm')[2]
+        return right
     
     def parameter_increment(self)->None:
         self.class_logger.info("increase current parameter value",
                                extra={'className':f"{self.__class__.__name__}:"})
-        parameter = self.parameter_options[self.current_parameter]
-        value = parameter['value']
-        step = parameter['step']
-        parameter['value'] = max(0, value + step)
-        self.display()
+        self.value = max(0, self.value+self.step)
         return None
     
     def parameter_decrement(self)->None:
         self.class_logger.info("decrease current parameter value",
                                extra={'className':f"{self.__class__.__name__}:"})
-        parameter = self.parameter_options[self.current_parameter]
-        value = parameter['value']
-        step = parameter['step']
-        parameter['value'] = max(0, value - step)
-        self.display()
+        self.value = max(0, self.value-self.step)
         return None
     
     def navigate(self, direction:str)->None:
         self.class_logger.info("navigate in the parameters",
                                extra={'className':f"{self.__class__.__name__}:"})
         try:
-            if self.keys[direction] not in ['', 'none']:
-                self.action = self.keys_callbacks[self.keys[direction]]
+            self.action = self.keys_callbacks[direction]
+            self.action()
         except KeyError as e:
             self.class_logger.error(f"KeyError: {e}")
         return None
@@ -575,41 +579,39 @@ class Numpad(Parameter):
     def display(self)->None:
         self.class_logger.info("add parameter elements to the display",
                                extra={'className':f"{self.__class__.__name__}:"})
-        super().display()
+        # super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
+        
         # Display parameter with values
-        
-        font = self.FONTS["PixelOperatorBold_M" if self.parameter_seleceted else "PixelOperator_M"]
-        draw.text((self._pose['left'], self._pose['top']),
-                  self.name,
-                  font=font,
-                  fill=(255, 255, 255),
-                  anchor='lm')
-        
-        box_pose = (self._pose['right']+self._pose['pad'],
-                    self._pose['top']-self._pose['pad'],
-                    self._pose['right']+self._pose['pad']+self._pose['width'],
-                    self._pose['top']+self._pose['pad']+self._pose['hight'])
+        box_pose = (self._pose['right'],
+                    self._pose['top'],
+                    self._pose['right']+self._pose['width'],
+                    self._pose['top']+self._pose['height'])
         if self.parameter_seleceted:
             draw.rounded_rectangle(box_pose,
                                    radius=self._pose['radius'],
                                    fill=(64, 64, 64),
                                    outline=(255, 255, 255),
                                    width=2)
-            # TODO: replace this text by a top-bottom chevron custom icon
-            draw.text((self._pose['right']+2*self._pose['offset'], self._pose['top']),
-                      "<>",
-                      font=font,
-                      fill=(255, 255, 255),
-                      anchor='lm')
+            asset_rafter = Image.open(self.PATH_ASSETS+'Up_down_rafter.png')
+            self.LCD.screen_img.paste(asset_rafter,
+                                      (self._pose['right']+self._pose['offset'],
+                                       self._pose['top']+(self._pose['height']-asset_rafter.size[1])//2),
+                                      asset_rafter.convert("RGBA"))
         else:
             draw.rounded_rectangle(box_pose,
                                    radius=self._pose['radius'],
-                                   fill=(0, 0, 0),
+                                   fill=(64, 64, 64) if self.parameter_active else (0, 0, 0),
                                    outline=(255, 255, 255),
                                    width=2)
         
-        draw.text((box_pose[2]-self._pose['offset'], self._pose['top']),
+        font = self.FONTS["PixelOperatorBold_M" if self.parameter_seleceted or self.parameter_active else "PixelOperator_M"]
+        draw.text((self._pose['left'], self._pose['top']+int(self._pose['height']/2)),
+                  self.name,
+                  font=font,
+                  fill=(255, 255, 255),
+                  anchor='lm')
+        draw.text((box_pose[2]-self._pose['offset'], self._pose['top']+int(self._pose['height']/2)),
                   str(self.value),
                   font=font,
                   fill=(255, 255, 255),
@@ -905,27 +907,11 @@ class SequenceParameterPage(Page):
         super().__init__(config)
         self._config = config
         
-        # self.parameters_pose = {
-        #     "left"       : 12,
-        #     "top"        : 52,
-        #     "font_size"  : "M",
-        #     "step"       : 32,
-        #     "pad_x"      : 14,
-        #     "pad_y"      : 14,
-        #     "offset"     : 8,
-        #     "radius"     : 12,
-        #     "box_length" : 100,
-        #     'right'  : max([
-        #         ImageDraw.Draw(self.LCD.screen_img).textbbox((12, 0), param['name'],
-        #                        font=self.FONTS["PixelOperatorBold_M"], anchor='lm')[2]
-        #         for param in self.parameter_options]),
-        #     }
-        
         # Set callbacks for navigation keys
         try:
             self.keys_callbacks = {
                 **self.keys_callbacks,
-                'select' : {'button':self.launch_sequence},
+                'select' : self.option_select,
                 'back' : self.option_back,
                 'up' : self.option_up,
                 'down' : self.option_down,
@@ -935,7 +921,7 @@ class SequenceParameterPage(Page):
             self.class_logger.warning("keys_callbacks doesn't existe",
                                       extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks = {
-                'select' : {'button':self.launch_sequence},
+                'select' : self.option_select,
                 'back' : self.option_back,
                 'up' : self.option_up,
                 'down' : self.option_down,
@@ -946,79 +932,78 @@ class SequenceParameterPage(Page):
         self.page_callbacks = {**callbacks["page_callbacks"]}
         
         self.action = lambda: None
+        self.direction = None
         
         self._input_type = {'number': Numpad, 'text': Keyboard}
-        self.options = [self._input_type[parameter['type']](parameter) for parameter in self._config['parameters']]
-        self.options = sorted(self.options, key=self._sorted_option)
+        max_len = max(self._config['parameters'], key=lambda x: len(x['name']))['name']
+        self.options = []
+        for parameter in self._config['parameters']:
+            option = self._input_type[parameter['type']](parameter, general_config)
+            option._pose['right'] = option._set_right(max_len)
+            self.options.append(option)
+        self.options = sorted(self.options, key=lambda x: x._pose["top"])
+        self._nb_options = len(self.options)
         self.current_option = 0
+        self.option_selected = False
+        
+        self._activate_option()
         
         self.tmp_param_file = "../tmp/sequence_parameters.tmp"
         return None
     
-    def _sorted_option(self, _in:dict)->int:
-        return _in._pose
-    
-    def activate_options(self)->None:
-        self.class_logger.info("activate usefull options",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        if self.options_list[self.current_option] == 'parameter':
-            self.parameter_active = True
-            self.button_active = False
-        elif self.options_list[self.current_option] == 'button':
-            self.parameter_active = False
-            self.button_active = True
-        else:
-            self.parameter_active = False
-            self.button_active = False
+    def _activate_option(self)->None:
+        for k in range(len(self.options)):
+            if k == self.current_option:
+                self.options[k].parameter_active = True
+            else:
+                self.options[k].parameter_active = False
         return None
     
-    def select(self)->None:
-        self.class_logger.info("handle selection action",
+    def option_select(self)->None:
+        self.class_logger.info("select active option",
                                extra={'className':f"{self.__class__.__name__}:"})
-        action = self.button_options[self.current_button]['action']
-        if action in self.page_callbacks.keys():
-            self.class_logger.debug(f"action '{action}'",
-                                    extra={'className':f"{self.__class__.__name__}:"})
-            self.page_callbacks[action](action)
-        elif action in self.keys_callbacks.keys():
-            self.class_logger.debug(f"action '{action}'",
-                                    extra={'className':f"{self.__class__.__name__}:"})
-            self.keys_callbacks[action]()
-        else:
-            self.class_logger.debug("no action to trigger",
-                                    extra={'className':f"{self.__class__.__name__}:"})
+        self.option_selected = not self.option_selected
+        self.options[self.current_option].parameter_seleceted = not self.options[self.current_option].parameter_seleceted
+        self.display()
         return None
     
     def option_back(self)->None:
-        option = self.options_list[self.current_option]
-        if option == 'parameter' and self.parameter_seleceted:
-            self.parameter_select()
+        if self.option_selected:
+            self.class_logger.info("unselect option",
+                                   extra={'className':f"{self.__class__.__name__}:"})
+            self.option_selected = not self.option_selected
+            self.options[self.current_option].parameter_seleceted = not self.options[self.current_option].parameter_seleceted
+            self.display()
         else:
-            self.keys_callbacks['go_back']()
+            self.class_logger.info("back to previous page",
+                                   extra={'className':f"{self.__class__.__name__}:"})
+            self.go_back()
         return None
     
     def option_up(self)->None:
-        self.class_logger.info("move current option up",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        if not self.parameter_seleceted:
-            self.current_option = (self.current_option-1)%len(self.options_list)
-        self.action = self.options_callbacks[self.options_list[self.current_option]]['up']
-        if type(self.action) == list:
-            self.action = self.action[self.parameter_seleceted]
-        self.activate_options()
-        self.action()
+        if self.option_selected:
+            self.class_logger.info("option up",
+                                   extra={'className':f"{self.__class__.__name__}:"})
+            self.options[self.current_option].navigate(self.direction)
+        else:
+            self.class_logger.info("move active option up",
+                                   extra={'className':f"{self.__class__.__name__}:"})
+            self.current_option = (self.current_option - 1) % self._nb_options
+            self._activate_option()
+        self.display()
         return None
     
     def option_down(self)->None:
-        self.class_logger.info("move current option down",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        if not self.parameter_seleceted:
-            self.current_option = (self.current_option+1)%len(self.options_list)
-        self.action = self.options_callbacks[self.options_list[self.current_option]]['down']
-        if type(self.action) == list:
-            self.action = self.action[self.parameter_seleceted]
-        self.activate_options()
-        self.action()
+        if self.option_selected:
+            self.class_logger.info("option down",
+                                   extra={'className':f"{self.__class__.__name__}:"})
+            self.options[self.current_option].navigate(self.direction)
+        else:
+            self.class_logger.info("move active option down",
+                                   extra={'className':f"{self.__class__.__name__}:"})
+            self.current_option = (self.current_option + 1) % self._nb_options
+            self._activate_option()
+        self.display()
         return None
     
     def launch_sequence(self)->None:
@@ -1051,11 +1036,10 @@ class SequenceParameterPage(Page):
     def navigate(self, direction:str)->None:
         self.class_logger.info(f"navigate '{direction}' into sequence parameter page options",
                                extra={'className':f"{self.__class__.__name__}:"})
+        self.direction = direction
         try:
             if self.keys[direction] not in ['', 'none']:
                 self.action = self.keys_callbacks[self.keys[direction]]
-            if type(self.action) == dict:
-                self.action = self.action[self.options_list[self.current_option]]
             self.class_logger.debug(f"execute '{self.action.__name__}'",
                                     extra={'className':f"{self.__class__.__name__}:"})
             self.action()
@@ -1067,6 +1051,8 @@ class SequenceParameterPage(Page):
         self.class_logger.info("display SequenceParameterPage",
                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
+        for opt in self.options:
+            opt.display()
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
@@ -1632,7 +1618,7 @@ class PageManager:
             "WifiPage"              : WifiPage,
             "SmartphonePage"        : SmartphonePage,
             "BatteryPage"           : BatteryPage,
-            "WifiPasswordPage"      : WifiPasswordPage,
+            # "WifiPasswordPage"      : WifiPasswordPage,
             }
         
         # Define interface level keys callback function
