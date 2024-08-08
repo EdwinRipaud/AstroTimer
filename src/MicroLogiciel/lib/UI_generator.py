@@ -356,7 +356,7 @@ class Parameter():
         for key, value in general_config.items():
             setattr(self, key, value)
         
-        self.parameter_seleceted = 0
+        self.parameter_selected = 0
         self.parameter_active = True
         
         # Set callbacks for navigation keys
@@ -370,6 +370,24 @@ class Parameter():
             self.keys_callbacks = {}
         return None
     
+    def _get_bbox(self, txt:str, x_offset:int=None)->tuple:
+        img = ImageDraw.Draw(self.LCD.screen_img)
+        out = img.textbbox((x_offset if x_offset else self._pose['left']+self._pose['offset'], 0),
+                              txt,
+                              font=self.FONTS["PixelOperatorBold_M"],
+                              anchor='lm')
+        return out
+    
+    def navigate(self, direction:str)->None:
+        self.class_logger.info("navigate in the parameters",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        try:
+            self.action = self.keys_callbacks[direction]
+            self.action()
+        except KeyError as e:
+            self.class_logger.error(f"KeyError: {e}")
+        return None
+    
     def display(self)->None:
         self.class_logger.info("initialise new LCD image",
                                extra={'className':f"{self.__class__.__name__}:"})
@@ -381,31 +399,39 @@ class Parameter():
 class Keyboard(Parameter):
     class_logger = logging.getLogger('classLogger')
     
-    def __init__(self, config:dict)->None:
-        self.class_logger.info("initialise Info specific options",
+    def __init__(self, config:dict, general_config:dict)->None:
+        self.class_logger.info("initialise Keyboard specific options",
                                extra={'className':f"{self.__class__.__name__}:"})
-        super().__init__(config)
+        super().__init__(general_config)
         self._config = config
+        
+        self.name = self._config['name']
+        self.value = self._config['value']
+        self.tmp_value = self.value
+        
+        self._pose = self._config['position']
+        self._pose["offset"] = 8
+        self._pose["right"] = self._get_bbox(self.name)[2]
         
         # Set callbacks for navigation keys
         try:
             self.keys_callbacks = {
                 **self.keys_callbacks,
-                "keyboard_up": self.keyboard_up,
-                "keyboard_down": self.keyboard_down,
-                "keyboard_left": self.keyboard_left,
-                "keyboard_right": self.keyboard_right,
-                "keyboard_select": self.keyboard_select
+                "up": self.keyboard_up,
+                "down": self.keyboard_down,
+                "left": self.keyboard_left,
+                "right": self.keyboard_right,
+                "enter": self.keyboard_select
                 }
         except AttributeError:
             self.class_logger.warning("keys_callbacks doesn't existe",
                                       extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks = {
-                "keyboard_up": self.keyboard_up,
-                "keyboard_down": self.keyboard_down,
-                "keyboard_left": self.keyboard_left,
-                "keyboard_right": self.keyboard_right,
-                "keyboard_select": self.keyboard_select
+                "up": self.keyboard_up,
+                "down": self.keyboard_down,
+                "left": self.keyboard_left,
+                "right": self.keyboard_right,
+                "enter": self.keyboard_select
                 }
         
         self.keyboard_keys = {'lower': [["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "DEL", "DEL", "OK", "OK"],
@@ -418,17 +444,17 @@ class Keyboard(Parameter):
         self._case = True
         self._keyboard_size = (len(self.keyboard_keys[self.case[self._case]]),
                                max([len(l) for l in self.keyboard_keys[self.case[self._case]]]))
-        self._key_spe = {'MAJ': {'pos': (17, 116),
-                                 'path': {False:f"{self.PATH_ASSETS}Key_MAJ.png",
-                                          True:f"{self.PATH_ASSETS}Key_MAJ_selected.png"}},
-                         'DEL': {'pos': (220, 92),
-                                 'path': {False:f"{self.PATH_ASSETS}Key_DEL.png",
-                                          True:f"{self.PATH_ASSETS}Key_DEL_selected.png"}},
-                         'OK': {'pos': (262, 92),
-                                'path': {False:f"{self.PATH_ASSETS}Key_OK.png",
-                                         True:f"{self.PATH_ASSETS}Key_OK_selected.png"}}}
-        self.init_pos = (30, 105)
-        self.step = (20, 24)
+        self._special_keys = {'MAJ': {'pos' : (17, 116),
+                                      'path': {False:f"{self.PATH_ASSETS}Key_MAJ.png",
+                                               True:f"{self.PATH_ASSETS}Key_MAJ_selected.png"}},
+                              'DEL': {'pos' : (220, 92),
+                                      'path': {False:f"{self.PATH_ASSETS}Key_DEL.png",
+                                               True:f"{self.PATH_ASSETS}Key_DEL_selected.png"}},
+                              'OK' : {'pos' : (262, 92),
+                                      'path': {False:f"{self.PATH_ASSETS}Key_OK.png",
+                                               True:f"{self.PATH_ASSETS}Key_OK_selected.png"}}}
+        self.keyboard_init_pos = (30, 105)
+        self.keyboard_step = (20, 24)
         self.current_key = (1, 1)
         return None
     
@@ -465,29 +491,31 @@ class Keyboard(Parameter):
                                extra={'className':f"{self.__class__.__name__}:"})
         key_val = self.keyboard_keys[self.case[self._case]][self.current_key[1]][self.current_key[0]]
         if len(key_val)<2:
-            print(key_val)
+            self.tmp_value += key_val
         elif key_val == "MAJ":
             self._case = not self._case
+        elif key_val == "OK":
+            self.parameter_selected = not self.parameter_selected
+            if len(self.tmp_value)>0:
+                self.value = self.tmp_value
+                self.tmp_value = ""
+        elif key_val == "DEL":
+            self.tmp_value = self.tmp_value[:-1]
         self.display()
         return None
     
-    def navigate(self, direction:str)->None:
-        self.class_logger.info(f"execute '{self.action.__name__}'",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        super().navigate(direction)
-        return None
-    
-    def _display_keys(self, draw:ImageDraw.ImageDraw, keys:list)->None:
+    def _display_keys(self, draw:ImageDraw.ImageDraw)->None:
+        keys = self.keyboard_keys[self.case[self._case]]
         # Display special keys
-        for k in self._key_spe.keys():
-            icon = Image.open(self._key_spe[k]['path'][k==keys[self.current_key[1]][self.current_key[0]]])
-            self.LCD.screen_img.paste(icon, self._key_spe[k]['pos'])
+        for k in self._special_keys.keys():
+            icon = Image.open(self._special_keys[k]['path'][k==keys[self.current_key[1]][self.current_key[0]]])
+            self.LCD.screen_img.paste(icon, self._special_keys[k]['pos'])
             
         # Display alphabetic keys
         if len(keys[self.current_key[1]][self.current_key[0]])<2:
-            x = self.init_pos[0]+self.step[0]*(self.current_key[0]-0.5)
-            y = self.init_pos[1]+self.step[1]*(self.current_key[1]-0.5)
-            draw.rounded_rectangle((x-1, y-1, x+self.step[0]+1, y+self.step[1]+1),
+            x = self.keyboard_init_pos[0]+self.keyboard_step[0]*(self.current_key[0]-0.5)
+            y = self.keyboard_init_pos[1]+self.keyboard_step[1]*(self.current_key[1]-0.5)
+            draw.rounded_rectangle((x-1, y-1, x+self.keyboard_step[0]+1, y+self.keyboard_step[1]+1),
                                    radius=5,
                                    fill=(0, 0, 0),
                                    outline=(255, 255, 255),
@@ -496,18 +524,54 @@ class Keyboard(Parameter):
         for i in range(self._keyboard_size[0]):
             for j in range(self._keyboard_size[1]):
                 if len(keys[i][j])<2:
-                    option_pos = (self.init_pos[0]+self.step[0]*j, self.init_pos[1]+self.step[1]*i)
+                    option_pos = (self.keyboard_init_pos[0]+self.keyboard_step[0]*j, self.keyboard_init_pos[1]+self.keyboard_step[1]*i)
                     draw.text(option_pos, keys[i][j], font=option_font, fill=(255, 255, 255), anchor='mm')
+        # TODO: Add current text visualisation above the keyboard
         return None
     
     def display(self)->None:
         self.class_logger.info("add infos to the display",
                                extra={'className':f"{self.__class__.__name__}:"})
-        super().display()
+        # super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
-        keys = self.keyboard_keys[self.case[self._case]]
-        
-        self._display_keys(draw, keys)
+        font = self.FONTS["PixelOperatorBold_M" if self.parameter_active else "PixelOperator_M"]
+        if self.parameter_selected:
+            self._display_keys(draw)
+            tmp_bbox = (self._pose['left'],
+                        38,
+                        self.LCD.screen_img.size[0]-self._pose['left'],
+                        66)
+            draw.rounded_rectangle(tmp_bbox,
+                                   radius=self._pose['radius'],
+                                   fill=(64, 64, 64) if self.parameter_active else (0, 0, 0),
+                                   outline=(255, 255, 255),
+                                   width=2)
+            draw.text((tmp_bbox[0]+self._pose['offset'], tmp_bbox[1]+14),
+                      self.tmp_value,
+                      font=font,
+                      fill=(255, 255, 255),
+                      anchor='lm')
+        else:
+            # Display parameter with values
+            box_pose = (self._pose['right'],
+                        self._pose['top'],
+                        self._pose['right']+self._pose['width'],
+                        self._pose['top']+self._pose['height'])
+            draw.rounded_rectangle(box_pose,
+                                   radius=self._pose['radius'],
+                                   fill=(64, 64, 64) if self.parameter_active else (0, 0, 0),
+                                   outline=(255, 255, 255),
+                                   width=2)
+            draw.text((self._pose['left'], self._pose['top']+self._pose['height']//2),
+                      self.name,
+                      font=font,
+                      fill=(255, 255, 255),
+                      anchor='lm')
+            draw.text((box_pose[2]-self._pose['offset'], self._pose['top']+self._pose['height']//2),
+                      str(self.value),
+                      font=font,
+                      fill=(255, 255, 255),
+                      anchor='rm')
         return None
 
 
@@ -515,7 +579,7 @@ class Numpad(Parameter):
     class_logger = logging.getLogger('classLogger')
     
     def __init__(self, config:dict, general_config:dict)->None:
-        self.class_logger.info("initialise Info specific options",
+        self.class_logger.info("initialise Numpad specific options",
                                extra={'className':f"{self.__class__.__name__}:"})
         super().__init__(general_config)
         self._config = config
@@ -526,9 +590,8 @@ class Numpad(Parameter):
         self.step = self._config['step']
         
         self._pose = self._config['position']
-        self._pose = {**self._pose,
-                      "offset": 8,
-                      "right": self._set_right(self.name)}
+        self._pose["offset"] = 8
+        self._pose["right"] = self._get_bbox(self.name)[2]
         
         # Set callbacks for navigation keys
         try:
@@ -546,14 +609,6 @@ class Numpad(Parameter):
                 }
         return None
     
-    def _set_right(self, txt:str)->int:
-        img = ImageDraw.Draw(self.LCD.screen_img)
-        right = img.textbbox((self._pose['left'], 0),
-                              txt,
-                              font=self.FONTS["PixelOperatorBold_M"],
-                              anchor='lm')[2]
-        return right
-    
     def parameter_increment(self)->None:
         self.class_logger.info("increase current parameter value",
                                extra={'className':f"{self.__class__.__name__}:"})
@@ -564,16 +619,6 @@ class Numpad(Parameter):
         self.class_logger.info("decrease current parameter value",
                                extra={'className':f"{self.__class__.__name__}:"})
         self.value = max(0, self.value-self.step)
-        return None
-    
-    def navigate(self, direction:str)->None:
-        self.class_logger.info("navigate in the parameters",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        try:
-            self.action = self.keys_callbacks[direction]
-            self.action()
-        except KeyError as e:
-            self.class_logger.error(f"KeyError: {e}")
         return None
     
     def display(self)->None:
@@ -587,7 +632,7 @@ class Numpad(Parameter):
                     self._pose['top'],
                     self._pose['right']+self._pose['width'],
                     self._pose['top']+self._pose['height'])
-        if self.parameter_seleceted:
+        if self.parameter_selected:
             draw.rounded_rectangle(box_pose,
                                    radius=self._pose['radius'],
                                    fill=(64, 64, 64),
@@ -605,13 +650,13 @@ class Numpad(Parameter):
                                    outline=(255, 255, 255),
                                    width=2)
         
-        font = self.FONTS["PixelOperatorBold_M" if self.parameter_seleceted or self.parameter_active else "PixelOperator_M"]
-        draw.text((self._pose['left'], self._pose['top']+int(self._pose['height']/2)),
+        font = self.FONTS["PixelOperatorBold_M" if self.parameter_selected or self.parameter_active else "PixelOperator_M"]
+        draw.text((self._pose['left'], self._pose['top']+self._pose['height']//2),
                   self.name,
                   font=font,
                   fill=(255, 255, 255),
                   anchor='lm')
-        draw.text((box_pose[2]-self._pose['offset'], self._pose['top']+int(self._pose['height']/2)),
+        draw.text((box_pose[2]-self._pose['offset'], self._pose['top']+self._pose['height']//2),
                   str(self.value),
                   font=font,
                   fill=(255, 255, 255),
@@ -939,7 +984,7 @@ class SequenceParameterPage(Page):
         self.options = []
         for parameter in self._config['parameters']:
             option = self._input_type[parameter['type']](parameter, general_config)
-            option._pose['right'] = option._set_right(max_len)
+            option._pose['right'] = option._get_bbox(max_len)[2]
             self.options.append(option)
         self.options = sorted(self.options, key=lambda x: x._pose["top"])
         self._nb_options = len(self.options)
@@ -962,17 +1007,25 @@ class SequenceParameterPage(Page):
     def option_select(self)->None:
         self.class_logger.info("select active option",
                                extra={'className':f"{self.__class__.__name__}:"})
-        self.option_selected = not self.option_selected
-        self.options[self.current_option].parameter_seleceted = not self.options[self.current_option].parameter_seleceted
+        active_option = self.options[self.current_option]
+        if active_option.__class__.__name__ == "Keyboard" and active_option.parameter_selected:
+            active_option.navigate(self.direction)
+        else:
+            self.option_selected = not self.option_selected
+            active_option.parameter_selected = not active_option.parameter_selected
         self.display()
         return None
     
     def option_back(self)->None:
         if self.option_selected:
-            self.class_logger.info("unselect option",
-                                   extra={'className':f"{self.__class__.__name__}:"})
-            self.option_selected = not self.option_selected
-            self.options[self.current_option].parameter_seleceted = not self.options[self.current_option].parameter_seleceted
+            active_option = self.options[self.current_option]
+            if active_option.__class__.__name__ == "Keyboard" and active_option.parameter_selected:
+                active_option.navigate(self.direction)
+            else:
+                self.class_logger.info("unselect option",
+                                       extra={'className':f"{self.__class__.__name__}:"})
+                self.option_selected = not self.option_selected
+                self.options[self.current_option].parameter_selected = not self.options[self.current_option].parameter_selected
             self.display()
         else:
             self.class_logger.info("back to previous page",
@@ -1051,8 +1104,12 @@ class SequenceParameterPage(Page):
         self.class_logger.info("display SequenceParameterPage",
                                extra={'className':f"{self.__class__.__name__}:"})
         super().display()
-        for opt in self.options:
-            opt.display()
+        active_option = self.options[self.current_option]
+        if active_option.__class__.__name__ == "Keyboard" and active_option.parameter_selected:
+            active_option.display()
+        else:
+            for opt in self.options:
+                opt.display()
         self._draw_status_bar()
         self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
@@ -1100,7 +1157,7 @@ class SequenceRunningPage(Button):
         try:
             if self.keys[direction] not in ['', 'none']:
                 if type(self.keys_callbacks[self.keys[direction]]) is list:
-                    self.action = self.keys_callbacks[self.keys[direction]][self.parameter_seleceted]
+                    self.action = self.keys_callbacks[self.keys[direction]][self.parameter_selected]
                 else:
                     self.action = self.keys_callbacks[self.keys[direction]]
         except KeyError as e:
