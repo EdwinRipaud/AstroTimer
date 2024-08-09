@@ -235,116 +235,6 @@ class Menu(Page):
         return None
 
 
-class Button(Page):
-    class_logger = logging.getLogger('classLogger')
-    
-    def __init__(self, config:dict)->None:
-        self.class_logger.info("initialise menu specific options",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        super().__init__(config)
-        self._config = config
-        
-        self.button_options = self._config["buttons"]
-        
-        self.current_button = 0
-        self.button_active = True
-        
-        bboxs = [ImageDraw.Draw(self.LCD.screen_img).textbbox(tuple(button['position']),
-                                                              button["name"] if button["name"] != "" else "[empty name]",
-                                                              font=self.FONTS["PixelOperatorBold_M"],
-                                                              anchor='mm'
-                                                              ) for button in self.button_options]
-        self.button_pose = {
-            'left'   : [bbox[0] for bbox in bboxs],
-            'right'  : [bbox[2] for bbox in bboxs],
-            'top'    : [bbox[1] for bbox in bboxs],
-            'bottom' : [bbox[3] for bbox in bboxs],
-            }
-        
-        # Set callbacks for navigation keys
-        try:
-            self.keys_callbacks = {
-                **self.keys_callbacks,
-                'button_up'     : self.button_up,
-                'button_down'   : self.button_down,
-                'button_select' : self.button_select,
-                }
-        except AttributeError:
-            self.class_logger.warning("keys_callbacks doesn't existe",
-                                      extra={'className':f"{self.__class__.__name__}:"})
-            self.keys_callbacks = {
-                'button_up'     : self.button_up,
-                'button_down'   : self.button_down,
-                'button_select' : self.button_select,
-                }
-        return None
-    
-    def button_up(self)->None:
-        self.class_logger.info("move to the next button",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        self.current_button = (self.current_button - 1) % len(self.button_options)
-        self.display()
-        return None
-    
-    def button_down(self)->None:
-        self.class_logger.info("move to the previous button",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        self.current_button = (self.current_button + 1) % len(self.button_options)
-        self.display()
-        return None
-    
-    def button_select(self)->None:
-        self.class_logger.info("handle menu selection callbacks",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        action = self.menu_options[self.current_button]["action"]
-        if action not in ['', 'none']:
-            self.class_logger.debug(f"action '{action}'",
-                                    extra={'className':f"{self.__class__.__name__}:"})
-            self.page_callbacks[action](action)
-        else:
-            self.class_logger.debug("No action yet !",
-                                    extra={'className':f"{self.__class__.__name__}:"})
-        return None
-    
-    def display(self)->None:
-        self.class_logger.info("add menu elements to the display",
-                               extra={'className':f"{self.__class__.__name__}:"})
-        super().display()
-        draw = ImageDraw.Draw(self.LCD.screen_img)
-        # Add buttons
-        for i in range(len(self.button_options)):
-            button = self.button_options[i]
-            
-            option_font = self.FONTS["PixelOperator_M"] if i != self.current_button else self.FONTS["PixelOperatorBold_M"]
-            option_pos = tuple(button['position'])
-            option_text = button["name"] if button["name"] != "" else "[empty name]"
-            
-            if (i == self.current_button) and (self.button_active):
-                draw.rounded_rectangle((self.button_pose['left'][i]-self.button_pose['pad_x'],
-                                        self.button_pose['top'][i]-self.button_pose['pad_y'],
-                                        self.button_pose['right'][i]+self.button_pose['pad_x'],
-                                        self.button_pose['bottom'][i]+self.button_pose['pad_y']),
-                                       radius=self.button_pose['radius'],
-                                       fill=(64, 64, 64),
-                                       outline=(255, 255, 255),
-                                       width=2)
-            else:
-                draw.rounded_rectangle((self.button_pose['left'][i]-self.button_pose['pad_x'],
-                                        self.button_pose['top'][i]-self.button_pose['pad_y'],
-                                        self.button_pose['right'][i]+self.button_pose['pad_x'],
-                                        self.button_pose['bottom'][i]+self.button_pose['pad_y']),
-                                       radius=self.button_pose['radius'],
-                                       fill=(0, 0, 0),
-                                       outline=(64, 64, 64),
-                                       width=1)
-            draw.text(option_pos,
-                      option_text,
-                      font=option_font,
-                      fill=(255, 255, 255),
-                      anchor='mm')
-        return None
-
-
 class Parameter():
     class_logger = logging.getLogger('classLogger')
     
@@ -393,6 +283,58 @@ class Parameter():
                                extra={'className':f"{self.__class__.__name__}:"})
         # Generate an image representing the page
         self.LCD.screen_img = Image.new(mode="RGBA", size=self.LCD.size[::-1], color=(0, 0, 0, 255))
+        return None
+
+class Button(Parameter):
+    class_logger = logging.getLogger('classLogger')
+    
+    def __init__(self, config:dict, general_config:dict)->None:
+        self.class_logger.info("initialise menu specific options",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().__init__(general_config)
+        self._config = config
+        
+        self.name = self._config['name']
+        self.button_action = self._config['action']
+        
+        self._pose = self._config['position']
+        self._pose["offset"] = 8
+        self._pose["right"] = self._get_bbox(self.name)[2] + self._pose["offset"]
+        self._pose["width"] = self._pose["right"] - self._pose["left"]
+        
+        self.button_active = False
+        return None
+    
+    def display(self)->None:
+        self.class_logger.info("add menu elements to the display",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        draw = ImageDraw.Draw(self.LCD.screen_img)
+        
+        # Display buttons
+        box_pose = (self._pose['left'],
+                    self._pose['top'],
+                    self._pose['right'],
+                    self._pose['top']+self._pose['height'])
+        
+        if self.parameter_active:
+            draw.rounded_rectangle(box_pose,
+                                   radius=self._pose['radius'],
+                                   fill=(64, 64, 64),
+                                   outline=(255, 255, 255),
+                                   width=2)
+        else:
+            draw.rounded_rectangle(box_pose,
+                                   radius=self._pose['radius'],
+                                   fill=(0, 0, 0),
+                                   outline=(64, 64, 64),
+                                   width=1)
+        
+        font = self.FONTS["PixelOperatorBold_M" if self.parameter_active else "PixelOperator_M"]
+        draw.text((self._pose["left"]+self._pose["width"]//2, self._pose['top']+self._pose['height']//2),
+                  self.name,
+                  font=font,
+                  fill=(255, 255, 255),
+                  anchor='mm')
         return None
 
 
@@ -532,7 +474,6 @@ class Keyboard(Parameter):
     def display(self)->None:
         self.class_logger.info("add infos to the display",
                                extra={'className':f"{self.__class__.__name__}:"})
-        # super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
         font = self.FONTS["PixelOperatorBold_M" if self.parameter_active else "PixelOperator_M"]
         if self.parameter_selected:
@@ -624,7 +565,6 @@ class Numpad(Parameter):
     def display(self)->None:
         self.class_logger.info("add parameter elements to the display",
                                extra={'className':f"{self.__class__.__name__}:"})
-        # super().display()
         draw = ImageDraw.Draw(self.LCD.screen_img)
         
         # Display parameter with values
@@ -865,7 +805,7 @@ class MainMenuPage(Menu):
         return None
 
 
-class ShutdownPage(Button):
+class ShutdownPage():#Button):
     class_logger = logging.getLogger('classLogger')
     
     def __init__(self, config:dict, callbacks:dict, general_config:dict)->None:
@@ -876,17 +816,27 @@ class ShutdownPage(Button):
         for key, value in general_config.items():
             setattr(self, key, value)
         
-        super().__init__(config)
+        # super().__init__(config)
         self._config = config
         
-        self.button_pose = {**self.button_pose,
-            "pad_x"  : 15,
-            "pad_y"  : 10,
-            "radius" : 12
-            }
+        # self.button_pose = {**self.button_pose,
+        #     "pad_x"  : 15,
+        #     "pad_y"  : 10,
+        #     "radius" : 12
+        #     }
         
         # Set callbacks for navigation keys
-        self.keys_callbacks = {**self.keys_callbacks, 'select': self.select, **callbacks["keys_callbacks"]}
+        try:
+            self.keys_callbacks = {
+                **self.keys_callbacks,
+                'select': self.select,
+                **callbacks["keys_callbacks"]}
+        except AttributeError:
+            self.class_logger.warning("keys_callbacks doesn't existe",
+                                      extra={'className':f"{self.__class__.__name__}:"})
+            self.keys_callbacks = {
+                'select': self.select,
+                **callbacks["keys_callbacks"]}
         
         # Set callbacks for navigation
         self.page_callbacks = {**callbacks["page_callbacks"]}
@@ -979,12 +929,13 @@ class SequenceParameterPage(Page):
         self.action = lambda: None
         self.direction = None
         
-        self._input_type = {'number': Numpad, 'text': Keyboard}
+        self._input_type = {'number': Numpad, 'text': Keyboard, 'button':Button}
         max_len = max(self._config['parameters'], key=lambda x: len(x['name']))['name']
         self.options = []
         for parameter in self._config['parameters']:
             option = self._input_type[parameter['type']](parameter, general_config)
-            option._pose['right'] = option._get_bbox(max_len)[2]
+            if option.__class__.__name__ != "Button":
+                option._pose['right'] = option._get_bbox(max_len)[2]
             self.options.append(option)
         self.options = sorted(self.options, key=lambda x: x._pose["top"])
         self._nb_options = len(self.options)
@@ -1010,6 +961,8 @@ class SequenceParameterPage(Page):
         active_option = self.options[self.current_option]
         if active_option.__class__.__name__ == "Keyboard" and active_option.parameter_selected:
             active_option.navigate(self.direction)
+        elif active_option.__class__.__name__ == "Button":
+            print("Execute the predifine button action")
         else:
             self.option_selected = not self.option_selected
             active_option.parameter_selected = not active_option.parameter_selected
@@ -1115,7 +1068,7 @@ class SequenceParameterPage(Page):
         return None
 
 
-class SequenceRunningPage(Button):
+class SequenceRunningPage():#Button):
     class_logger = logging.getLogger('classLogger')
     
     def __init__(self, config:dict, callbacks:dict, general_config:dict)->None:
@@ -1126,19 +1079,26 @@ class SequenceRunningPage(Button):
         for key, value in general_config.items():
             setattr(self, key, value)
         
-        super().__init__(config)
+        # super().__init__(config)
         self._config = config
         
-        self.button_pose = {**self.button_pose,
-            "pad_x"  : 10,
-            "pad_y"  : 10,
-            "radius" : 6
-            }
+        # self.button_pose = {**self.button_pose,
+        #     "pad_x"  : 10,
+        #     "pad_y"  : 10,
+        #     "radius" : 6
+        #     }
         
         # Set callbacks for navigation keys
-        self.keys_callbacks = {
-            **self.keys_callbacks,
-            **callbacks["keys_callbacks"],
+        try:
+            self.keys_callbacks = {
+                **self.keys_callbacks,
+                **callbacks["keys_callbacks"],
+            }
+        except AttributeError:
+            self.class_logger.warning("keys_callbacks doesn't existe",
+                                      extra={'className':f"{self.__class__.__name__}:"})
+            self.keys_callbacks = {
+                **callbacks["keys_callbacks"],
             }
         
         # Set callbacks for navigation
