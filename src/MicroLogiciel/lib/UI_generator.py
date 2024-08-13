@@ -1209,9 +1209,10 @@ class SequenceRunningPage(Page):
         return None
     
     def display_running(self)->None:
-        Ti = time.time()
+        dt = min(self.UPDATE_TIMES["sequence_running"], self._time_exp/2)
+        Ti = time.time() - dt
         while self.trigger_process.is_alive() and not self.interrupt_event.is_set():
-            if (time.time()-Ti) > min(self.UPDATE_TIMES["sequence_running"], self._time_exp/2):
+            if (time.time()-Ti) > dt:
                 self.class_logger.info("display screen while running",
                                        extra={'className':f"{self.__class__.__name__}:"})
                 try:
