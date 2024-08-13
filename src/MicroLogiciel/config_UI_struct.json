@@ -61,19 +61,21 @@
             "enter" : "select",
             "up"    : "",
             "down"  : "",
-            "left"  : "button_up",
-            "right" : "button_down"
+            "left"  : "left",
+            "right" : "right"
         },
-        "buttons": [
+        "parameters": [
             {
                 "name"     : "No",
+                "type"     : "button",
                 "action"   : "main_menu_page",
-                "position" : [256, 145]
+                "position" : {"center_x":64, "center_y":145, "height":28, "radius":8}
             },
             {
                 "name"     : "Yes",
+                "type"     : "button",
                 "action"   : "shutdown",
-                "position" : [64, 145]
+                "position" : {"center_x":256, "center_y":145, "height":28, "radius":8}
             }
         ]
     },
@@ -116,13 +118,13 @@
                 "name"    : "Password",
                 "type"    : "text",
                 "value"   : "Oui",
-                "position": {"left":12, "top":134, "width":100, "height":28, "radius":12}
+                "position": {"left":12, "top":134, "width":100, "height":28, "radius":8}
             },
             {
                 "name"     : "Run",
                 "type"     : "button",
-                "action"   : "run_sequence",
-                "position" : {"left":250, "top":134, "height":28, "radius":8}
+                "action"   : "launch_sequence",
+                "position" : {"center_x":285, "center_y":150, "height":28, "radius":8}
             }
         ]
     },
@@ -135,14 +137,7 @@
             "down"  : "go_back",
             "left"  : "go_back",
             "right" : "go_back"
-        },
-        "buttons" : [
-            {
-                "name"     : "||",
-                "action"   : "sequence_parameter_page",
-                "position" : [275, 80]
-            }
-        ]
+        }
     },
     "setting_page" : {
         "title" : "Setting",
