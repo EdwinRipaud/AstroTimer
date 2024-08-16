@@ -2,9 +2,9 @@
     "paths": {
         "PATH_ASSETS"  : "assets/",
         "PATH_FONTS"   : "fonts/",
-        "PATH_WIFI"    : "/etc/hostapd/hostapd.conf",
+        "PATH_WIFI"    : "/home/Er-berry/Desktop/WIFI/hostapd/hostapd.conf",
         "PATH_WEBSITE" : {
-            "path" : "/etc/dhcpcd-static.conf",
+            "path" : "/home/Er-berry/Desktop/WIFI/dhcpcd-static.conf",
             "port" : 55000
         }
     },

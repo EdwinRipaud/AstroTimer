@@ -296,6 +296,7 @@ class Parameter():
         self.LCD.screen_img = Image.new(mode="RGBA", size=self.LCD.size[::-1], color=(0, 0, 0, 255))
         return None
 
+
 class Button(Parameter):
     class_logger = logging.getLogger('classLogger')
     
@@ -723,10 +724,19 @@ class ComingSoonPage(Page):
         self._config = config
         
         # Set callbacks for navigation keys
-        self.keys_callbacks = {**callbacks["keys_callbacks"]}
+        try:
+            self.keys_callbacks = {**self.keys_callbacks,
+                                   **callbacks["keys_callbacks"]
+                                   }
+        except AttributeError:
+            self.keys_callbacks = {**callbacks["keys_callbacks"]}
         
-        # Set callbacks for navigation
-        self.page_callbacks = {**callbacks["page_callbacks"]}
+        try:
+            self.page_callbacks = {**self.page_callbacks,
+                                   **callbacks["page_callbacks"]
+                                   }
+        except AttributeError:
+            self.page_callbacks = {**callbacks["page_callbacks"]}
         
         self.action = lambda: None
         return None
@@ -790,10 +800,19 @@ class MainMenuPage(Menu):
             }
         
         # Set callbacks for navigation keys
-        self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
+        try:
+            self.keys_callbacks = {**self.keys_callbacks,
+                                   **callbacks["keys_callbacks"]
+                                   }
+        except AttributeError:
+            self.keys_callbacks = {**callbacks["keys_callbacks"]}
         
-        # Set callbacks for navigation
-        self.page_callbacks = {**self.page_callbacks, **callbacks["page_callbacks"]}
+        try:
+            self.page_callbacks = {**self.page_callbacks,
+                                   **callbacks["page_callbacks"]
+                                   }
+        except AttributeError:
+            self.page_callbacks = {**callbacks["page_callbacks"]}
         
         self.action = lambda: None
         return None
@@ -837,16 +856,18 @@ class ShutdownPage(Page):
                 'right'  : self.move_right,
                 **callbacks["keys_callbacks"]}
         except AttributeError:
-            self.class_logger.warning("keys_callbacks doesn't existe",
-                                      extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks = {
                 'select': self.select,
                 'left'   : self.move_left,
                 'right'  : self.move_right,
                 **callbacks["keys_callbacks"]}
         
-        # Set callbacks for navigation
-        self.page_callbacks = {**callbacks["page_callbacks"]}
+        try:
+            self.page_callbacks = {**self.page_callbacks,
+                                   **callbacks["page_callbacks"]
+                                   }
+        except AttributeError:
+            self.page_callbacks = {**callbacks["page_callbacks"]}
         
         self.options = []
         for parameter in self._config['parameters']:
@@ -948,11 +969,10 @@ class SequenceParameterPage(Page):
                 'back' : self.option_back,
                 'up' : self.option_up,
                 'down' : self.option_down,
+                'launch_sequence' : self.launch_sequence,
                 **callbacks["keys_callbacks"],
                 }
         except AttributeError:
-            self.class_logger.warning("keys_callbacks doesn't existe",
-                                      extra={'className':f"{self.__class__.__name__}:"})
             self.keys_callbacks = {
                 'select' : self.option_select,
                 'back' : self.option_back,
@@ -962,8 +982,12 @@ class SequenceParameterPage(Page):
                 **callbacks["keys_callbacks"],
                 }
         
-        # Set callbacks for navigation
-        self.page_callbacks = {**callbacks["page_callbacks"]}
+        try:
+            self.page_callbacks = {**self.page_callbacks,
+                                   **callbacks["page_callbacks"]
+                                   }
+        except AttributeError:
+            self.page_callbacks = {**callbacks["page_callbacks"]}
         
         max_len = max(self._config['parameters'], key=lambda x: len(x['name']))['name']
         self.options = []
@@ -1124,19 +1148,18 @@ class SequenceRunningPage(Page):
         
         # Set callbacks for navigation keys
         try:
-            self.keys_callbacks = {
-                **self.keys_callbacks,
-                **callbacks["keys_callbacks"],
-            }
+            self.keys_callbacks = {**self.keys_callbacks,
+                                   **callbacks["keys_callbacks"]
+                                   }
         except AttributeError:
-            self.class_logger.warning("keys_callbacks doesn't existe",
-                                      extra={'className':f"{self.__class__.__name__}:"})
-            self.keys_callbacks = {
-                **callbacks["keys_callbacks"],
-            }
+            self.keys_callbacks = {**callbacks["keys_callbacks"]}
         
-        # Set callbacks for navigation
-        self.page_callbacks = {**callbacks["page_callbacks"]}
+        try:
+            self.page_callbacks = {**self.page_callbacks,
+                                   **callbacks["page_callbacks"]
+                                   }
+        except AttributeError:
+            self.page_callbacks = {**callbacks["page_callbacks"]}
         
         self.action = lambda: None
         
@@ -1300,10 +1323,19 @@ class WifiPage(Picture):
         self._config = config
         
         # Set callbacks for navigation keys
-        self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
+        try:
+            self.keys_callbacks = {**self.keys_callbacks,
+                                   **callbacks["keys_callbacks"]
+                                   }
+        except AttributeError:
+            self.keys_callbacks = {**callbacks["keys_callbacks"]}
         
-        # Set callbacks for navigation
-        self.page_callbacks = {**callbacks["page_callbacks"]}
+        try:
+            self.page_callbacks = {**self.page_callbacks,
+                                   **callbacks["page_callbacks"]
+                                   }
+        except AttributeError:
+            self.page_callbacks = {**callbacks["page_callbacks"]}
         
         self.action = lambda: None
         return None
@@ -1328,7 +1360,7 @@ class WifiPage(Picture):
                            'ignore_broadcast_ssid' :'true',
                            'wpa'                  :'WPA2',
                           }
-        self._generate_QRCode("WIFI:T:{};S:{};P:{};H:{};;".format(WIFI_CONFIG['wpa'],
+        self._generate_QRCode("WIFI:T:{};S:{};P:{};H:{};;".format("WPA", #WIFI_CONFIG['wpa'],
                                                                   WIFI_CONFIG['ssid'],
                                                                   WIFI_CONFIG['wpa_passphrase'],
                                                                   WIFI_CONFIG['ignore_broadcast_ssid']))
@@ -1365,10 +1397,19 @@ class SmartphonePage(Picture):
         self._config = config
         
         # Set callbacks for navigation keys
-        self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
+        try:
+            self.keys_callbacks = {**self.keys_callbacks,
+                                   **callbacks["keys_callbacks"]
+                                   }
+        except AttributeError:
+            self.keys_callbacks = {**callbacks["keys_callbacks"]}
         
-        # Set callbacks for navigation
-        self.page_callbacks = {**callbacks["page_callbacks"]}
+        try:
+            self.page_callbacks = {**self.page_callbacks,
+                                   **callbacks["page_callbacks"]
+                                   }
+        except AttributeError:
+            self.page_callbacks = {**callbacks["page_callbacks"]}
         
         self.action = lambda: None
         return None
@@ -1441,10 +1482,19 @@ class SettingPage(Menu):
             }
         
         # Set callbacks for navigation keys
-        self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
+        try:
+            self.keys_callbacks = {**self.keys_callbacks,
+                                   **callbacks["keys_callbacks"]
+                                   }
+        except AttributeError:
+            self.keys_callbacks = {**callbacks["keys_callbacks"]}
         
-        # Set callbacks for navigation
-        self.page_callbacks = {**self.page_callbacks, **callbacks["page_callbacks"]}
+        try:
+            self.page_callbacks = {**self.page_callbacks,
+                                   **callbacks["page_callbacks"]
+                                   }
+        except AttributeError:
+            self.page_callbacks = {**callbacks["page_callbacks"]}
         
         self.action = lambda: None
         return None
@@ -1482,10 +1532,19 @@ class BatteryPage(Info):
         self._config = config
         
         # Set callbacks for navigation keys
-        self.keys_callbacks = {**self.keys_callbacks, **callbacks["keys_callbacks"]}
+        try:
+            self.keys_callbacks = {**self.keys_callbacks,
+                                   **callbacks["keys_callbacks"]
+                                   }
+        except AttributeError:
+            self.keys_callbacks = {**callbacks["keys_callbacks"]}
         
-        # Set callbacks for navigation
-        self.page_callbacks = {**self.page_callbacks, **callbacks["page_callbacks"]}
+        try:
+            self.page_callbacks = {**self.page_callbacks,
+                                   **callbacks["page_callbacks"]
+                                   }
+        except AttributeError:
+            self.page_callbacks = {**callbacks["page_callbacks"]}
         
         self.action = lambda: None
         
@@ -1580,11 +1639,11 @@ class BatteryPage(Info):
         return None
 
 
-class WifiPasswordPage(Parameter):
+class WifiConfigurationPage(Page):
     class_logger = logging.getLogger('classLogger')
     
     def __init__(self, config:dict, callbacks:dict, general_config:dict)->None:
-        self.class_logger.info("initialise MainMenuPage",
+        self.class_logger.info("initialise WifiConfigurationPage",
                                extra={'className':f"{self.__class__.__name__}:"})
         
         # Associate general high level attribute to 'self'
@@ -1594,43 +1653,108 @@ class WifiPasswordPage(Parameter):
         super().__init__(config)
         self._config = config
         
-        # self.parameters_pose = {
-        #     "left"       : 12,
-        #     "top"        : 52,
-        #     "font_size"  : "M",
-        #     "step"       : 32,
-        #     "pad_x"      : 14,
-        #     "pad_y"      : 14,
-        #     "offset"     : 8,
-        #     "radius"     : 12,
-        #     "box_length" : 100,
-        #     'right'  : max([
-        #         ImageDraw.Draw(self.LCD.screen_img).textbbox((12, 0), param['name'],
-        #                        font=self.FONTS["PixelOperatorBold_M"], anchor='lm')[2]
-        #         for param in self.parameter_options]),
-        #     }
-        
         # Set callbacks for navigation keys
-        self.keys_callbacks = {#**self.keys_callbacks,
-                               # "up":self.keyboard_up,
-                               # "down":self.keyboard_down,
-                               # "right":self.keyboard_right,
-                               # "left":self.keyboard_left,
-                               # "select":self.keyboard_select,
-                                **callbacks["keys_callbacks"]}
+        try:
+            self.keys_callbacks = {**self.keys_callbacks,
+                                   'select' : self.option_select,
+                                   'back' : self.option_back,
+                                   'up' : self.option_up,
+                                   'down' : self.option_down,
+                                   **callbacks["keys_callbacks"]
+                                   }
+        except AttributeError:
+            self.keys_callbacks = {'select' : self.option_select,
+                                   'back' : self.option_back,
+                                   'up' : self.option_up,
+                                   'down' : self.option_down,**callbacks["keys_callbacks"]}
         
-        # Set callbacks for navigation
-        self.page_callbacks = {**self.page_callbacks,**callbacks["page_callbacks"]}
+        try:
+            self.page_callbacks = {**self.page_callbacks,
+                                   **callbacks["page_callbacks"]
+                                   }
+        except AttributeError:
+            self.page_callbacks = {**callbacks["page_callbacks"]}
+        
+        max_len = max(self._config['parameters'][:-1], key=lambda x: len(x['name']))['name']
+        self.options = []
+        for parameter in self._config['parameters']:
+            option = self._input_type[parameter['type']](parameter, general_config)
+            if option.__class__.__name__ != "Button":
+                option._pose['right'] = option._get_bbox(max_len)[2]
+                option._pose['width'] = self.LCD.screen_img.size[0] - option._pose['left'] - option._pose['right']
+            self.options.append(option)
+        self.options = sorted(self.options, key=lambda x: x._pose["top"])
+        self._nb_options = len(self.options)
+        self.current_option = 0
+        self.option_selected = False
+        
+        self._activate_option()
         
         self.action = lambda: None
         return None
     
-    def display(self)->None:
-        self.class_logger.info("display MainMenuPage",
+    def option_select(self)->None:
+        self.class_logger.info("select active option",
                                extra={'className':f"{self.__class__.__name__}:"})
-        super().display()
-        self._draw_status_bar()
-        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
+        active_option = self.options[self.current_option]
+        if active_option.__class__.__name__ == "Keyboard" and active_option.parameter_selected:
+            active_option.navigate(self.direction)
+        elif active_option.__class__.__name__ == "Button":
+            action = active_option.button_action
+            if action in self.keys_callbacks.keys():
+                self.class_logger.debug(f"action '{action}'",
+                                        extra={'className':f"{self.__class__.__name__}:"})
+                self.keys_callbacks[action]()
+            else:
+                self.class_logger.debug("no action to trigger",
+                                        extra={'className':f"{self.__class__.__name__}:"})
+        else:
+            self.option_selected = not self.option_selected
+            active_option.parameter_selected = not active_option.parameter_selected
+        self.display()
+        return None
+    
+    def option_back(self)->None:
+        if self.option_selected:
+            active_option = self.options[self.current_option]
+            if active_option.__class__.__name__ == "Keyboard" and active_option.parameter_selected:
+                active_option.navigate(self.direction)
+            else:
+                self.class_logger.info("unselect option",
+                                       extra={'className':f"{self.__class__.__name__}:"})
+                self.option_selected = not self.option_selected
+                self.options[self.current_option].parameter_selected = not self.options[self.current_option].parameter_selected
+            self.display()
+        else:
+            self.class_logger.info("back to previous page",
+                                   extra={'className':f"{self.__class__.__name__}:"})
+            self.keys_callbacks['go_back']()
+        return None
+    
+    def option_up(self)->None:
+        if self.option_selected:
+            self.class_logger.info("option up",
+                                   extra={'className':f"{self.__class__.__name__}:"})
+            self.options[self.current_option].navigate(self.direction)
+        else:
+            self.class_logger.info("move active option up",
+                                   extra={'className':f"{self.__class__.__name__}:"})
+            self.current_option = (self.current_option - 1) % self._nb_options
+            self._activate_option()
+        self.display()
+        return None
+    
+    def option_down(self)->None:
+        if self.option_selected:
+            self.class_logger.info("option down",
+                                   extra={'className':f"{self.__class__.__name__}:"})
+            self.options[self.current_option].navigate(self.direction)
+        else:
+            self.class_logger.info("move active option down",
+                                   extra={'className':f"{self.__class__.__name__}:"})
+            self.current_option = (self.current_option + 1) % self._nb_options
+            self._activate_option()
+        self.display()
         return None
     
     def navigate(self, direction:str)->None:
@@ -1640,6 +1764,20 @@ class WifiPasswordPage(Parameter):
         self.class_logger.info(f"Execute: '{self.action.__name__}'",
                                extra={'className':f"{self.__class__.__name__}:"})
         self.action()
+        return None
+    
+    def display(self)->None:
+        self.class_logger.info("display MainMenuPage",
+                               extra={'className':f"{self.__class__.__name__}:"})
+        super().display()
+        active_option = self.options[self.current_option]
+        if active_option.__class__.__name__ == "Keyboard" and active_option.parameter_selected:
+            active_option.display()
+        else:
+            for opt in self.options:
+                opt.display()
+        self._draw_status_bar()
+        self.LCD.ShowImage(show=BYPASS_BUILTIN_SCREEN)
         return None
 
 
@@ -1670,7 +1808,7 @@ class PageManager:
             "WifiPage"              : WifiPage,
             "SmartphonePage"        : SmartphonePage,
             "BatteryPage"           : BatteryPage,
-            # "WifiPasswordPage"      : WifiPasswordPage,
+            "WifiConfigurationPage" : WifiConfigurationPage,
             }
         
         # Define interface level keys callback function

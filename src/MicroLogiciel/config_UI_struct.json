@@ -115,12 +115,6 @@
                 "position": {"left":12, "top":102, "width":100, "height":28, "radius":12}
             },
             {
-                "name"    : "Password",
-                "type"    : "text",
-                "value"   : "Oui",
-                "position": {"left":12, "top":134, "width":100, "height":28, "radius":8}
-            },
-            {
                 "name"     : "Run",
                 "type"     : "button",
                 "action"   : "launch_sequence",
@@ -151,6 +145,11 @@
         },
         "menus" : [
             {
+                "name"  : "Wifi",
+                "action" : "wifi_configuration_page",
+                "icon"   : ""
+            },
+            {
                 "name"  : "General",
                 "action" : "coming_soon_page",
                 "icon"   : ""
@@ -161,14 +160,40 @@
                 "icon"   : ""
             },
             {
-                "name"  : "Wifi",
-                "action" : "wifi_password_page",
-                "icon"   : ""
-            },
-            {
                 "name"  : "Update",
                 "action" : "coming_soon_page",
                 "icon"   : ""
+            }
+        ]
+    },
+    "wifi_configuration_page" : {
+        "title" : "Wifi configuration",
+        "class" : "WifiConfigurationPage",
+        "keys"  : {
+            "enter" : "select",
+            "up"    : "up",
+            "down"  : "down",
+            "left"  : "back",
+            "right" : "select"
+        },
+        "parameters" : [
+            {
+                "name"    : "SSID",
+                "type"    : "text",
+                "value"   : "Wifi_SSID",
+                "position": {"left":12, "top":40, "width":100, "height":32, "radius":8}
+            },
+            {
+                "name"    : "Password",
+                "type"    : "text",
+                "value"   : "Wifi_PASSWORD",
+                "position": {"left":12, "top":80, "width":100, "height":32, "radius":8}
+            },
+            {
+                "name"     : "Disable wifi",
+                "type"     : "button",
+                "action"   : "switch_wifi",
+                "position" : {"center_x":80, "center_y":136, "height":32, "radius":8}
             }
         ]
     },
